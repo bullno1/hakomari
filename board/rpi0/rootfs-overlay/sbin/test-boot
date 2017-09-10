@@ -1,0 +1,10 @@
+#!/bin/sh
+
+exec > /opt/test-boot
+
+uptime
+ls /sys
+
+mount -t configfs none /sys/kernel/config
+
+/sbin/init-gadget
