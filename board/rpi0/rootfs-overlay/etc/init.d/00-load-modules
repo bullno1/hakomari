@@ -1,0 +1,6 @@
+#!/bin/sh -e
+
+for MODULE in $(cat /etc/modules)
+do
+	/sbin/modprobe ${MODULE}
+done

@@ -1,8 +1,5 @@
 #!/bin/sh
 
-modprobe dwc2
-modprobe libcomposite
-
 cd /sys/kernel/config/usb_gadget/
 mkdir -p hakomari
 cd hakomari

@@ -1,0 +1,12 @@
+#!/bin/sh -ex
+
+/bin/mount -t proc proc /proc
+/bin/mount -o remount,rw /
+
+exec > /var/log/boot.log 2>&1
+
+/bin/uptime
+/bin/mkdir -p /dev/shm
+/bin/mount -a
+/bin/hostname -F /etc/hostname
+/bin/run-parts --exit-on-error /etc/init.d
