@@ -1,0 +1,2 @@
+dtoverlay=dwc2
+gpu_mem=64

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-modprobe dwc
+modprobe dwc2
 modprobe libcomposite
 
 cd /sys/kernel/config/usb_gadget/

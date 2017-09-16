@@ -1,5 +1,6 @@
 #!/bin/sh
 
+set -x
 exec > /opt/test-boot
 
 uptime
@@ -8,3 +9,7 @@ ls /sys
 mount -t configfs none /sys/kernel/config
 
 /sbin/init-gadget
+ls /dev
+ls /sys/class/udc
+
+/sbin/getty -L ttyGS0 0 vt100
