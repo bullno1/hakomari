@@ -1,0 +1,16 @@
+#!/bin/sh -ea
+
+PATH=${PATH:-/bin:/sbin}
+SV_NAME=$(basename $(pwd))
+SV_NAME_BASE=${SV_NAME%%@*}
+SV_NAME_PARAM=${SV_NAME##*@}
+SV_BIN=${SV_NAME_BASE}
+SV_ARGS=${SV_NAME_PARAM}
+SV_EXEC=exec
+
+exec 2>&1
+
+. ${1}
+
+echo "Starting ${SV_NAME}"
+${SV_EXEC} ${SV_BIN} ${SV_ARGS}

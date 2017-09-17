@@ -1,0 +1,7 @@
+#!/bin/sh
+
+PROC_INFO=$(cat /proc/1/sched | head -n 1)
+PID=${PROC_INFO##* (}
+PID=${PID%%,*}
+
+[ ${PID} -ne 1 ]

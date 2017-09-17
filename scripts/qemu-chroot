@@ -1,0 +1,35 @@
+#!/bin/sh
+
+NEWROOT="$1"
+BINDIR=$(dirname $0)
+INTERPRETER="${NEWROOT}/usr/bin/qemu-arm-static"
+
+touch ${INTERPRETER}
+
+PIDFILE=$(mktemp -u)
+mkfifo -m 600 ${PIDFILE}
+
+exec env -i ${BINDIR}/../output/host/sbin/jchroot \
+	--fstab ${BINDIR}/fstab \
+	--new-network-ns \
+	--hostname=hakomari \
+	--pidfile=${PIDFILE} \
+	"$@" < /dev/stdin &
+
+EXECUTOR=$!
+PID=$(cat ${PIDFILE})
+rm ${PIDFILE}
+
+cleanup() {
+	kill -9 ${PID} 2> /dev/null
+
+	for MOUNTPOINT in $(cut -d$'\t' -f2 ${BINDIR}/fstab)
+	do
+		umount -l "${NEWROOT}/${MOUNTPOINT}"
+	done
+
+	rm ${INTERPRETER}
+}
+
+trap "cleanup" EXIT
+wait ${EXECUTOR}

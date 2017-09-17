@@ -1,0 +1,4 @@
+#!/bin/sh -e
+
+SV_NAME=$(basename $(dirname $(pwd)))
+exec /bin/logger -t ${SV_NAME} -p daemon.info

@@ -1,0 +1,3 @@
+#!/bin/runit-sv
+
+SV_ARGS="-n -O /var/log/messages"

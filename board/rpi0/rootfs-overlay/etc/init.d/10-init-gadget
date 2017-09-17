@@ -1,5 +1,7 @@
 #!/bin/sh
 
+detect-container && exit 0 || true
+
 cd /sys/kernel/config/usb_gadget/
 mkdir -p hakomari
 cd hakomari

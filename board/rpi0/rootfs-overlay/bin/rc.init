@@ -10,3 +10,7 @@ exec > /var/log/boot.log 2>&1
 /bin/mount -a
 /bin/hostname -F /etc/hostname
 /bin/run-parts --exit-on-error /etc/init.d
+
+mkdir -p /var/run/runit
+ln -s /etc/runit/runsvdir/default /run/service
+exec runsvdir -P /run/service

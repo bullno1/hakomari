@@ -1,0 +1,15 @@
+#!/bin/sh -e
+
+SV_NAME=$(basename $1)
+
+mkdir -p $1
+cd $1
+
+echo "#!/bin/runit-sv" > run
+chmod +x run
+ln -s /var/run/runit/${SV_NAME} supervise
+
+mkdir -p log
+cd log
+ln -s /bin/runit-log run
+ln -s /var/run/runit/${SV_NAME}.log supervise
