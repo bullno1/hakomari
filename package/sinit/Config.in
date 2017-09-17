@@ -1,7 +1,7 @@
 config BR2_PACKAGE_SINIT
 	bool "sinit"
 	help
-	  sinit is a suckless init, initially based on Rich Felker’s
+	  sinit is a suckless init, initially based on Rich Felker's
 	  minimal init.
 
 	  https://core.suckless.org/sinit
