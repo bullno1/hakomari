@@ -1,0 +1,5 @@
+#!/bin/runit-sv
+
+sv start syslogd
+
+SV_ARGS="-n"
