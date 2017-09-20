@@ -1,0 +1,10 @@
+--- a/argp-fmtstream.h
++++ b/argp-fmtstream.h
+@@ -215,7 +215,7 @@
+ #if defined(__GNUC__) && !defined(__GNUC_STDC_INLINE__)
+ #define ARGP_FS_EI extern inline
+ #else
+-#define ARGP_FS_EI inline
++#define ARGP_FS_EI static inline
+ #endif
+ #endif
