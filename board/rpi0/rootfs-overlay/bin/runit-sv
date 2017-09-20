@@ -10,7 +10,8 @@ SV_EXEC=exec
 
 exec 2>&1
 
+echo "Starting ${SV_NAME}"
+
 . ${1}
 
-echo "Starting ${SV_NAME}"
 ${SV_EXEC} ${SV_BIN} ${SV_ARGS}
