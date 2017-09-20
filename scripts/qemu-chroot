@@ -2,34 +2,18 @@
 
 NEWROOT="$1"
 BINDIR=$(dirname $0)
-INTERPRETER="${NEWROOT}/usr/bin/qemu-arm-static"
+INTERPRETER="$(which qemu-arm-static)"
 
-touch ${INTERPRETER}
+touch output/target/${INTERPRETER}
 
-PIDFILE=$(mktemp -u)
-mkfifo -m 600 ${PIDFILE}
+PIDFILE=/tmp/hakomari.pid
+LOGDIR=/tmp/hakomari.log
 
-exec env -i ${BINDIR}/../output/host/sbin/jchroot \
-	--fstab ${BINDIR}/fstab \
-	--new-network-ns \
-	--hostname=hakomari \
-	--pidfile=${PIDFILE} \
-	"$@" < /dev/stdin &
+mkdir -p ${LOGDIR}
+mkdir -p ${NEWROOT}/.hako
 
-EXECUTOR=$!
-PID=$(cat ${PIDFILE})
-rm ${PIDFILE}
-
-cleanup() {
-	kill -9 ${PID} 2> /dev/null
-
-	for MOUNTPOINT in $(cut -d$'\t' -f2 ${BINDIR}/fstab)
-	do
-		umount -l "${NEWROOT}/${MOUNTPOINT}"
-	done
-
-	rm ${INTERPRETER}
-}
-
-trap "cleanup" EXIT
-wait ${EXECUTOR}
+exec ${BINDIR}/../output/host/sbin/hako-run \
+	--mount ${INTERPRETER}:${INTERPRETER}:ro \
+	--mount ${LOGDIR}:/var/log \
+	--pid-file=${PIDFILE} \
+	"$@"

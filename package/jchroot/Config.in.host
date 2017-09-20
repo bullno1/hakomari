@@ -1,6 +1,0 @@
-config BR2_PACKAGE_HOST_JCHROOT
-	bool "host jchroot"
-	help
-	  A chroot with more isolation.
-
-	  https://github.com/vincentbernat/jchroot

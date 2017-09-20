@@ -1,0 +1,6 @@
+config BR2_PACKAGE_HOST_HAKO
+	bool "host hako"
+	help
+	  A minimal sandboxing tool.
+
+	  https://github.com/bullno1/hako

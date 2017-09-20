@@ -1,2 +1,0 @@
-/usr/bin/qemu-arm-static	/usr/bin/qemu-arm-static	none	bind,ro		0	0
-tmpfs	/var/log	tmpfs	rw,nosuid,nodev		0	0
