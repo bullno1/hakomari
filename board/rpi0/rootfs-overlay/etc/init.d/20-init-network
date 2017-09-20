@@ -1,0 +1,9 @@
+#!/bin/sh -e
+
+if detect-container
+then
+	ip link add name usb0 type dummy
+fi
+
+ip addr add 10.0.0.254/24 dev usb0
+ip link set usb0 up

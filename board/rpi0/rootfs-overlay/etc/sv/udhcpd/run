@@ -1,0 +1,5 @@
+#!/bin/runit-sv
+
+touch /var/run/udhcpd.leases
+
+SV_ARGS="-f /etc/udhcpd.conf"
