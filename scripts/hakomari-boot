@@ -5,6 +5,7 @@ TARGETDIR="${BINDIR}/../output/target"
 INTERPRETER="$(which qemu-arm-static)"
 
 touch ${TARGETDIR}/${INTERPRETER}
+touch ${TARGETDIR}/dev/urandom
 
 PIDFILE=/tmp/hakomari.pid
 
@@ -12,5 +13,6 @@ mkdir -p ${TARGETDIR}/.hako
 
 exec sudo ${BINDIR}/../output/host/sbin/hako-run \
 	--mount ${INTERPRETER}:${INTERPRETER}:ro \
+	--mount /dev/urandom:/dev/urandom:ro \
 	--pid-file=${PIDFILE} \
 	${TARGETDIR} "$@"

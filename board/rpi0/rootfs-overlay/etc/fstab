@@ -4,4 +4,5 @@ sysfs		/sys		sysfs	rw,nosuid,nodev,noexec,relatime	0	0
 configfs	/sys/kernel/config	configfs	rw,nosuid,noexec,relatime	0	0
 tmpfs		/run	tmpfs	rw,nosuid,nodev,relatime,mode=755	0	0
 tmpfs		/dev/shm	tmpfs	rw,nosuid,nodev	0	0
+devpts		/dev/pts	devpts	rw,nosuid,noexec,relatime,mode=620,ptmxmode=000	0	0
 tmpfs		/tmp		tmpfs	rw,nosuid,nodev	0	0
