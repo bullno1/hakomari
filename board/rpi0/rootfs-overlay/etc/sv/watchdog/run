@@ -1,0 +1,5 @@
+#!/bin/runit-sv
+
+[ ! -e "/dev/watchdog" ] && sv down ${SV_NAME} || true
+
+SV_ARGS="-F -T 10 -t 5"
