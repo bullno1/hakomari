@@ -1,0 +1,7 @@
+#!/bin/runit-sv
+
+RANDOM_DEV=/dev/random
+RNG_DEV=/dev/hwrng
+SV_ARGS="--foreground --random-device=${RANDOM_DEV} --rng-device=${RNG_DEV}"
+
+[ ! -e "/dev/${RNG_DEV}" ] && sv down ${SV_NAME} || true
