@@ -1,7 +1,14 @@
-#!/bin/runit-sv
+#!/bin/runit-sandboxed-sv
 
 RANDOM_DEV=/dev/random
 RNG_DEV=/dev/hwrng
-SV_ARGS="--foreground --random-device=${RANDOM_DEV} --rng-device=${RNG_DEV}"
+SV_ARGS="--foreground"
+SANDBOX_ARGS="\
+	--mount ${RANDOM_DEV}:/dev/random:rw \
+	--mount ${RNG_DEV}:/dev/hwrng:rw \
+	--mount /proc/sys/kernel/random/write_wakeup_threshold:/proc/sys/kernel/random/write_wakeup_threshold:rw \
+	--mount /proc/sys/kernel/random/poolsize:/proc/sys/kernel/random/poolsize:rw \
+	--read-only \
+"
 
 [ ! -e "${RNG_DEV}" ] && sv down ${SV_NAME} || true
