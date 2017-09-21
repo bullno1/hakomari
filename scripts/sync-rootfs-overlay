@@ -1,0 +1,16 @@
+#!/bin/sh -e
+
+BINDIR=$(dirname $0)
+cd ${BINDIR}/../board/rpi0/rootfs-overlay
+
+sync() {
+	rsync \
+		-ravlzz \
+		-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+		$1/ root@10.0.0.254:/$1/
+}
+
+for DIR in $(ls)
+do
+	sync ${DIR}
+done
