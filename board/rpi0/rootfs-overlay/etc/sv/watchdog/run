@@ -3,7 +3,6 @@
 DEVICE="/dev/watchdog"
 REBOOT_TIMEOUT=5
 RESET_INTERVAL=3
+SV_ARGS="-F -T ${REBOOT_TIMEOUT} -t ${RESET_INTERVAL} ${DEVICE}"
 
 [ ! -e "${DEVICE}" ] && sv down ${SV_NAME} || true
-
-SV_ARGS="-F -T ${REBOOT_TIMEOUT} -t ${RESET_INTERVAL} ${DEVICE}"
