@@ -1,1 +1,28 @@
 #!/bin/sh -e
+
+LEVEL=$1
+case ${LEVEL} in
+	0|6)
+		for SERVICE in $(ls /run/service)
+		do
+			sv shutdown ${SERVICE} || true
+		done
+
+		SIG_LEVEL0=USR1
+		SIG_LEVEL6=INT
+		eval "SIG=\${SIG_LEVEL${LEVEL}}"
+
+		kill -${SIG} 1
+		;;
+	*)
+		LEVEL_DIR="/etc/runit/runsvdir/$1"
+		if [ ! -e "${LEVEL_DIR}" ]
+		then
+			echo "Invalid level: $1" 2>1
+			exit 1
+		fi
+
+		rm /run/service
+		ln -s "/etc/runit/runsvdir/$1" /run/service
+		;;
+esac
