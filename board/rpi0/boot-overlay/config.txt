@@ -1,2 +1,4 @@
 dtoverlay=dwc2
+dtparam=i2c1=on
+dtparam=i2c_arm=on
 gpu_mem=64

@@ -1,0 +1,7 @@
+config BR2_PACKAGE_HAKOMARI
+	bool "hakomari"
+	depends on BR2_PACKAGE_C_PERIPHERY
+	help
+	  Wallet daemons.
+
+	  https://github.com/bullno1/hakomari
