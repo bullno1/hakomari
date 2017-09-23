@@ -8,5 +8,10 @@ do
 	DEST=$(echo ${MOUNT} | cut -d':' -f2)
 	OPTIONS=$(echo ${MOUNT} | cut -d':' -f3)
 
-	mount -o ${OPTIONS:-ro},bind ${SRC} .${DEST}
+	mount -o bind ${SRC} .${DEST}
+	mount -o remount,${OPTIONS:-ro},bind .${DEST}
 done
+
+# Hide sensitive directories
+mount -t tmpfs -o ro tmpfs .hako
+mount -t tmpfs -o ro tmpfs ./lib/modules
