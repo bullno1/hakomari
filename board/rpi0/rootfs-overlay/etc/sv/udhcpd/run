@@ -1,5 +1,11 @@
 #!/bin/runit-sv
 
-touch /var/run/udhcpd.leases
-
 SV_ARGS="-f /etc/udhcpd.conf"
+SV_EXEC="exec sandbox-exec"
+SANDBOX_MOUNTS="\
+	/etc/udhcpd.conf:/etc/udhcpd.conf \
+	/var/run/udhcpd.leases:/run/udhcpd.leases:rw \
+"
+SANDBOX_ARGS="--network"
+
+touch /var/run/udhcpd.leases
