@@ -1,0 +1,3 @@
+#!/bin/sh -e
+
+exec hako-run ${SANDBOX_ARGS} ${SANDBOX_DIR:-sandbox} "$@"

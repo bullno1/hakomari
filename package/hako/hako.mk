@@ -1,4 +1,4 @@
-HAKO_VERSION = 0.1.0
+HAKO_VERSION = 0.2.0
 HAKO_SOURCE = $(HAKO_VERSION).tar.gz
 HAKO_SITE = https://github.com/bullno1/hako/archive
 HAKO_LICENSE = BSD

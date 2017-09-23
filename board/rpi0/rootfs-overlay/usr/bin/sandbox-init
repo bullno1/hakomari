@@ -1,0 +1,12 @@
+#!/bin/sh -e
+
+DEFAULT_MOUNTS="${SV_BIN}:${SV_BIN} /lib:/lib"
+
+for MOUNT in $(echo "${DEFAULT_MOUNTS} ${SANDBOX_MOUNTS}" | tr ' ' '\n')
+do
+	SRC=$(echo ${MOUNT} | cut -d':' -f1)
+	DEST=$(echo ${MOUNT} | cut -d':' -f2)
+	OPTIONS=$(echo ${MOUNT} | cut -d':' -f3)
+
+	mount -o ${OPTIONS:-ro},bind ${SRC} .${DEST}
+done

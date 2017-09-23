@@ -7,6 +7,8 @@ sync() {
 	rsync \
 		-ravlzz \
 		-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
+		--usermap $(id -u):root \
+		--groupmap $(id -g):root \
 		$1/ root@10.0.0.254:/$1/
 }
 

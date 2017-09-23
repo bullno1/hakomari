@@ -4,7 +4,7 @@ PATH=${PATH:-/bin:/sbin}
 SV_NAME=$(basename $(pwd))
 SV_NAME_BASE=${SV_NAME%%@*}
 SV_NAME_PARAM=${SV_NAME##*@}
-SV_BIN=${SV_NAME_BASE}
+SV_BIN=$(which ${SV_NAME_BASE})
 SV_ARGS=${SV_NAME_PARAM}
 SV_EXEC=exec
 

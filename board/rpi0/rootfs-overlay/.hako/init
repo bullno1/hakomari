@@ -1,0 +1,9 @@
+#!/bin/sh -e
+
+INTERPRETER="$(which qemu-arm-static)"
+
+touch .${INTERPRETER}
+mount -o ro,bind ${INTERPRETER} .${INTERPRETER}
+
+touch ./dev/urandom
+mount -o ro,bind /dev/urandom ./dev/urandom
