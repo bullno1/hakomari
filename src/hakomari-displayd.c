@@ -1,34 +1,45 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <c-periphery/gpio.h>
+#include <memory.h>
+#include "ssd1306.h"
 
 int
 main(int argc, const char* argv[])
 {
-	(void)argc;
-	(void)argv;
-
-	gpio_t gpio;
-	if(gpio_open(&gpio, 5, GPIO_DIR_IN) < 0)
+	if(argc != 2)
 	{
-		fprintf(stderr, "Cannot connect gpio: %s\n", gpio_errmsg(&gpio));
+		fprintf(stderr, "Usage: hakomari-displayd <i2c-dev>\n");
 		return EXIT_FAILURE;
 	}
 
-	if(gpio_set_edge(&gpio, GPIO_EDGE_RISING) < 0)
+	ssd1306_t display;
+	if(ssd1306_init(&display, argv[1], SSD1306_128_64) < 0)
 	{
-		fprintf(stderr, "Cannot configure gpio: %s\n", gpio_errmsg(&gpio));
+		fprintf(stderr, "Error connecting to display: %s\n", ssd1306_error(&display));
 		return EXIT_FAILURE;
 	}
 
-	bool value;
-	if(gpio_read(&gpio, &value) < 0)
+	if(ssd1306_begin(&display, SSD1306_SWITCHCAPVCC) < 0)
 	{
-		fprintf(stderr, "Cannot read gpio: %s\n", gpio_errmsg(&gpio));
+		fprintf(stderr, "Error connecting to display: %s\n", ssd1306_error(&display));
+		ssd1306_cleanup(&display);
 		return EXIT_FAILURE;
 	}
 
-	printf("Value: %s\n", value ? "true" : "false");
+	size_t size;
+	ssd1306_get_buf_size(SSD1306_128_64, &size);
+
+	uint8_t buf[size];
+	memset(buf, 0xFF, size);
+
+	if(ssd1306_display(&display, buf) < 0)
+	{
+		fprintf(stderr, "Error sending image to display: %s\n", ssd1306_error(&display));
+		ssd1306_cleanup(&display);
+		return EXIT_FAILURE;
+	}
+
+	ssd1306_cleanup(&display);
 
 	return EXIT_SUCCESS;
 }
