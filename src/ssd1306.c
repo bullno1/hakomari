@@ -166,6 +166,13 @@ ssd1306_begin(ssd1306_t* handle, uint8_t vccstate)
 }
 
 int
+ssd1306_end(ssd1306_t* handle)
+{
+	uint8_t commands[] = { SSD1306_DISPLAYOFF };
+	return SSD1306_send_commands(handle, commands, COUNT_OF(commands));
+}
+
+int
 ssd1306_display(ssd1306_t* handle, uint8_t* buffer)
 {
 	uint8_t width, height;

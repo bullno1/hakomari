@@ -23,6 +23,9 @@ struct ssd1306_s
 };
 
 int
+ssd1306_get_dimension(ssd1306_type_t type, uint8_t* width, uint8_t* height);
+
+int
 ssd1306_get_buf_size(ssd1306_type_t type, size_t* size);
 
 int
@@ -36,6 +39,9 @@ ssd1306_error(ssd1306_t* handle);
 
 int
 ssd1306_begin(ssd1306_t* handle, uint8_t vccstate);
+
+int
+ssd1306_end(ssd1306_t* handle);
 
 int
 ssd1306_display(ssd1306_t* handle, uint8_t* buffer);
