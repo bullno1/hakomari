@@ -33,6 +33,14 @@
 #define SSD1306_SEGREMAP 0xA0
 #define SSD1306_CHARGEPUMP 0x8D
 
+#define SSD1306_ACTIVATE_SCROLL 0x2F
+#define SSD1306_DEACTIVATE_SCROLL 0x2E
+#define SSD1306_SET_VERTICAL_SCROLL_AREA 0xA3
+#define SSD1306_RIGHT_HORIZONTAL_SCROLL 0x26
+#define SSD1306_LEFT_HORIZONTAL_SCROLL 0x27
+#define SSD1306_VERTICAL_AND_RIGHT_HORIZONTAL_SCROLL 0x29
+#define SSD1306_VERTICAL_AND_LEFT_HORIZONTAL_SCROLL 0x2A
+
 #define SSD1306_TRANSFER_BLK_SIZE 16
 
 enum ssd1306_error_e
@@ -42,7 +50,7 @@ enum ssd1306_error_e
 };
 
 int
-ssd1306_get_dimension(ssd1306_type_t type, uint8_t* width, uint8_t* height)
+ssd1306_get_dimension(ssd1306_type_t type, unsigned int* width, unsigned int* height)
 {
 	switch(type)
 	{
@@ -53,20 +61,6 @@ ssd1306_get_dimension(ssd1306_type_t type, uint8_t* width, uint8_t* height)
 		default:
 			return SSD1306_ERR_ARG;
 	}
-}
-
-int
-ssd1306_get_buf_size(ssd1306_type_t type, size_t* size)
-{
-	int error;
-	uint8_t width, height;
-	if((error = ssd1306_get_dimension(type, &width, &height)) < 0)
-	{
-		return error;
-	}
-
-	*size = width * height;
-	return 0;
 }
 
 int
@@ -94,6 +88,8 @@ ssd1306_error(ssd1306_t* handle)
 {
 	switch(handle->error)
 	{
+		case 0:
+			return "Success";
 		case SSD1306_ERR_I2C:
 			return i2c_errmsg(&handle->i2c);
 		case SSD1306_ERR_ARG:
@@ -104,7 +100,7 @@ ssd1306_error(ssd1306_t* handle)
 }
 
 static int
-SSD1306_send_commands(ssd1306_t* handle, uint8_t* commands, size_t num_commands)
+ssd1306_send_commands(ssd1306_t* handle, uint8_t* commands, size_t num_commands)
 {
 	for(size_t i = 0; i < num_commands; ++i)
 	{
@@ -146,10 +142,11 @@ ssd1306_128_64_begin(ssd1306_t* handle)
 		SSD1306_SETVCOMDETECT, 0x40,
 		SSD1306_DISPLAYALLON_RESUME,
 		SSD1306_NORMALDISPLAY,
-		SSD1306_DISPLAYON
+		SSD1306_DISPLAYON,
+		SSD1306_DEACTIVATE_SCROLL
 	};
 
-	return SSD1306_send_commands(handle, commands, COUNT_OF(commands));
+	return ssd1306_send_commands(handle, commands, COUNT_OF(commands));
 }
 
 int
@@ -169,13 +166,13 @@ int
 ssd1306_end(ssd1306_t* handle)
 {
 	uint8_t commands[] = { SSD1306_DISPLAYOFF };
-	return SSD1306_send_commands(handle, commands, COUNT_OF(commands));
+	return ssd1306_send_commands(handle, commands, COUNT_OF(commands));
 }
 
 int
-ssd1306_display(ssd1306_t* handle, uint8_t* buffer)
+ssd1306_display(ssd1306_t* handle, void* image, ssd1306_get_pixel_fn get_pixel)
 {
-	uint8_t width, height;
+	unsigned int width, height;
 	int error;
 	if((error = ssd1306_get_dimension(handle->type, &width, &height)) < 0)
 	{
@@ -187,20 +184,37 @@ ssd1306_display(ssd1306_t* handle, uint8_t* buffer)
 		SSD1306_PAGEADDR, 0, height / 8 - 1,
 	};
 
-	if(SSD1306_send_commands(handle, commands, COUNT_OF(commands) < 0))
+	if(ssd1306_send_commands(handle, commands, COUNT_OF(commands) < 0))
 	{
 		return handle->error = SSD1306_ERR_I2C;
 	}
 
+	uint8_t buf[width * height / 8];
+	memset(buf, 0, COUNT_OF(buf));
+
+	for(unsigned int y = 0; y < height; ++y)
+	{
+		for(unsigned int x = 0; x < width; ++x)
+		{
+			if(get_pixel(image, x, y))
+			{
+				unsigned int byte_offset = (y / 8) * width + x;
+				unsigned int bit_offset = y % 8;
+				uint8_t mask = 1 << bit_offset;
+				buf[byte_offset] |= mask;
+			}
+		}
+	}
+
+	uint8_t page_buf[17];
+	page_buf[0] = 0x40;
 	for(size_t i = 0; i < (width * height / 8); i += SSD1306_TRANSFER_BLK_SIZE)
 	{
-		uint8_t buf[17];
-		buf[0] = 0x40;
-		memcpy(&buf[1], &buffer[i], SSD1306_TRANSFER_BLK_SIZE);
+		memcpy(&page_buf[1], &buf[i], SSD1306_TRANSFER_BLK_SIZE);
 		struct i2c_msg msg = {
 			.addr = SSD1306_I2C_ADDRESS,
-			.len = COUNT_OF(buf),
-			.buf = buf
+			.len = COUNT_OF(page_buf),
+			.buf = page_buf
 		};
 
 		if(i2c_transfer(&handle->i2c, &msg, 1) < 0)

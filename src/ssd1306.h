@@ -22,11 +22,10 @@ struct ssd1306_s
 	int error;
 };
 
-int
-ssd1306_get_dimension(ssd1306_type_t type, uint8_t* width, uint8_t* height);
+typedef int ssd1306_get_pixel_fn(void* image, unsigned int x, unsigned int y);
 
 int
-ssd1306_get_buf_size(ssd1306_type_t type, size_t* size);
+ssd1306_get_dimension(ssd1306_type_t type, unsigned int* width, unsigned int* height);
 
 int
 ssd1306_init(ssd1306_t* handle, const char* device, ssd1306_type_t type);
@@ -44,6 +43,6 @@ int
 ssd1306_end(ssd1306_t* handle);
 
 int
-ssd1306_display(ssd1306_t* handle, uint8_t* buffer);
+ssd1306_display(ssd1306_t* handle, void* image, ssd1306_get_pixel_fn get_pixel);
 
 #endif

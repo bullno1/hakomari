@@ -43,7 +43,6 @@ flags = [
 '-Wno-missing-field-initializers', # {0} is nice
 '-Wc++98-compat',
 '-fexceptions',
-'-DNDEBUG',
 '-isystem', './output/host/arm-buildroot-linux-uclibcgnueabihf/sysroot/usr/include',
 # THIS IS IMPORTANT! Without a "-std=<something>" flag, clang won't know which
 # language to use when compiling headers. So it will guess. Badly. So C++
