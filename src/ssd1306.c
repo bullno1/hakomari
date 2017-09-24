@@ -1,6 +1,5 @@
 #include "ssd1306.h"
 #include <memory.h>
-#include <stdlib.h>
 
 #define COUNT_OF(X) (sizeof(X) / sizeof(X[0]))
 
@@ -189,37 +188,37 @@ ssd1306_display(ssd1306_t* handle, void* image, ssd1306_get_pixel_fn get_pixel)
 		return handle->error = SSD1306_ERR_I2C;
 	}
 
-	uint8_t buf[width * height / 8];
-	memset(buf, 0, COUNT_OF(buf));
+	uint8_t buf[SSD1306_TRANSFER_BLK_SIZE + 1];
+	buf[0] = 0x40;
+	struct i2c_msg msg = {
+		.addr = SSD1306_I2C_ADDRESS,
+		.len = SSD1306_TRANSFER_BLK_SIZE + 1,
+		.buf = buf
+	};
 
-	for(unsigned int y = 0; y < height; ++y)
+	for(unsigned int y = 0; y < height; y += 8)
 	{
-		for(unsigned int x = 0; x < width; ++x)
+		for(unsigned int x = 0; x < width; x += SSD1306_TRANSFER_BLK_SIZE)
 		{
-			if(get_pixel(image, x, y))
+			for(
+				unsigned int byte_offset = 0;
+				byte_offset < SSD1306_TRANSFER_BLK_SIZE;
+				++byte_offset
+			)
 			{
-				unsigned int byte_offset = (y / 8) * width + x;
-				unsigned int bit_offset = y % 8;
-				uint8_t mask = 1 << bit_offset;
-				buf[byte_offset] |= mask;
+				uint8_t byte = 0;
+				for(unsigned int bit_index = 0; bit_index < 8; ++bit_index)
+				{
+					byte <<= 1;
+					byte |= get_pixel(image, x + byte_offset, y + 7 - bit_index);
+				}
+				buf[byte_offset + 1] = byte;
 			}
-		}
-	}
 
-	uint8_t page_buf[17];
-	page_buf[0] = 0x40;
-	for(size_t i = 0; i < (width * height / 8); i += SSD1306_TRANSFER_BLK_SIZE)
-	{
-		memcpy(&page_buf[1], &buf[i], SSD1306_TRANSFER_BLK_SIZE);
-		struct i2c_msg msg = {
-			.addr = SSD1306_I2C_ADDRESS,
-			.len = COUNT_OF(page_buf),
-			.buf = page_buf
-		};
-
-		if(i2c_transfer(&handle->i2c, &msg, 1) < 0)
-		{
-			return handle->error = SSD1306_ERR_I2C;
+			if(i2c_transfer(&handle->i2c, &msg, 1) < 0)
+			{
+				return handle->error = SSD1306_ERR_I2C;
+			}
 		}
 	}
 

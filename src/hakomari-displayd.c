@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <memory.h>
 #include <assert.h>
+#include <gdfontt.h>
 #include "ssd1306.h"
 #include "ssd1306_gd.h"
 
@@ -39,8 +40,13 @@ main(int argc, const char* argv[])
 
 	gdImageFill(fb.image, 0, 0, fb.clear_color);
 	gdImageLine(fb.image, 0, 0, 128, 64, fb.draw_color);
-	gdImageFilledEllipse(fb.image, 80, 30, 30, 30, fb.draw_color);
-	ssd1306_gd_display(&fb, &display);
+	gdImageFilledEllipse(fb.image, 80, 30, 25, 50, fb.draw_color);
+	gdImageString(fb.image, gdFontGetTiny(), 30, 30, (unsigned char*)"Hakomari", fb.draw_color);
+	if(ssd1306_gd_display(&fb, &display) < 0)
+	{
+		fprintf(stderr, "Error sending image: %s\n", ssd1306_error(&display));
+		quit(EXIT_FAILURE);
+	}
 
 	char ch;
 	fread(&ch, sizeof(ch), 1, stdin);
