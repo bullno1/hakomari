@@ -1,4 +1,4 @@
 dwc2
 libcomposite
-i2c-bcm2708
+i2c-bcm2835
 i2c-dev
