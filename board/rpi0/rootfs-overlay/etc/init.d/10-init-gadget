@@ -12,9 +12,11 @@ echo 0x0100 > bcdDevice # v1.0.0
 echo 0x0200 > bcdUSB # USB2
 
 mkdir -p strings/0x409
-echo "fedcba9876543210" > strings/0x409/serialnumber
-echo "Test" > strings/0x409/manufacturer
-echo "HakoMari USB Device" > strings/0x409/product
+SERIAL=$(cat /proc/cpuinfo | grep 'Serial' | cut -d':' -f2)
+SERIAL="${SERIAL## }"
+echo "${SERIAL}" > strings/0x409/serialnumber
+echo "bullno1" > strings/0x409/manufacturer
+echo "Hakomari USB Device" > strings/0x409/product
 
 mkdir -p configs/c.1/strings/0x409
 echo "Config 1: Dev Mode" > configs/c.1/strings/0x409/configuration
@@ -22,6 +24,9 @@ echo 350 > configs/c.1/MaxPower
 
 mkdir -p functions/acm.usb0
 ln -s functions/acm.usb0 configs/c.1/
+
+mkdir -p functions/acm.usb1
+ln -s functions/acm.usb1 configs/c.1/
 
 mkdir -p functions/ecm.usb0
 # first byte of address must be even
