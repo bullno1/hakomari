@@ -1,7 +1,8 @@
 config BR2_PACKAGE_HAKOMARI
 	bool "hakomari"
-	depends on BR2_PACKAGE_C_PERIPHERY
-	depends on BR2_PACKAGE_GD
+	select BR2_PACKAGE_C_PERIPHERY
+	select BR2_PACKAGE_GD
+	select BR2_PACKAGE_CMP
 	help
 	  Wallet daemons.
 

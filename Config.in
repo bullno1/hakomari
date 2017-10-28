@@ -1,4 +1,5 @@
 source "$BR2_EXTERNAL_HAKOMARI_PATH/package/sinit/Config.in"
 source "$BR2_EXTERNAL_HAKOMARI_PATH/package/hako/Config.in"
 source "$BR2_EXTERNAL_HAKOMARI_PATH/package/hako/Config.in.host"
+source "$BR2_EXTERNAL_HAKOMARI_PATH/package/cmp/Config.in"
 source "$BR2_EXTERNAL_HAKOMARI_PATH/package/hakomari/Config.in"
