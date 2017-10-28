@@ -67,7 +67,7 @@ ssd1306_init(ssd1306_t* handle, const char* device, ssd1306_type_t type)
 {
 	memset(handle, 0, sizeof(*handle));
 
-	if(i2c_open(&handle->i2c, device) < 0)
+	if(i2c_open(&handle->i2c, device) != 0)
 	{
 		return handle->error = SSD1306_ERR_I2C;
 	}
@@ -110,7 +110,7 @@ ssd1306_send_commands(ssd1306_t* handle, uint8_t* commands, size_t num_commands)
 			.buf = buf
 		};
 
-		if(i2c_transfer(&handle->i2c, &msg, 1) < 0)
+		if(i2c_transfer(&handle->i2c, &msg, 1) != 0)
 		{
 			return handle->error = SSD1306_ERR_I2C;
 		}
@@ -173,7 +173,7 @@ ssd1306_display(ssd1306_t* handle, void* image, ssd1306_get_pixel_fn get_pixel)
 {
 	unsigned int width, height;
 	int error;
-	if((error = ssd1306_get_dimension(handle->type, &width, &height)) < 0)
+	if((error = ssd1306_get_dimension(handle->type, &width, &height)) != 0)
 	{
 		return handle->error = error;
 	}
@@ -183,7 +183,7 @@ ssd1306_display(ssd1306_t* handle, void* image, ssd1306_get_pixel_fn get_pixel)
 		SSD1306_PAGEADDR, 0, height / 8 - 1,
 	};
 
-	if(ssd1306_send_commands(handle, commands, COUNT_OF(commands) < 0))
+	if(ssd1306_send_commands(handle, commands, COUNT_OF(commands)) != 0)
 	{
 		return handle->error = SSD1306_ERR_I2C;
 	}
@@ -215,7 +215,7 @@ ssd1306_display(ssd1306_t* handle, void* image, ssd1306_get_pixel_fn get_pixel)
 				buf[byte_offset + 1] = byte;
 			}
 
-			if(i2c_transfer(&handle->i2c, &msg, 1) < 0)
+			if(i2c_transfer(&handle->i2c, &msg, 1) != 0)
 			{
 				return handle->error = SSD1306_ERR_I2C;
 			}

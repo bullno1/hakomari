@@ -5,7 +5,7 @@ ssd1306_gd_init(ssd1306_gd_t* image, ssd1306_type_t type)
 {
 	unsigned int width, height;
 	int error;
-	if((error = ssd1306_get_dimension(type, &width, &height)) < 0)
+	if((error = ssd1306_get_dimension(type, &width, &height)) != 0)
 	{
 		return error;
 	}
