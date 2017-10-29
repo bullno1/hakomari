@@ -21,6 +21,8 @@
 #endif
 #define quit(code) do { exit_code = code; goto quit; } while(0)
 
+#define POLLGPIO (POLLPRI | POLLERR)
+
 static int
 configure_button(gpio_t* gpio, int pin)
 {
@@ -38,9 +40,38 @@ configure_button(gpio_t* gpio, int pin)
 	return 0;
 }
 
+static int
+show_text(ssd1306_gd_t* fb, ssd1306_t* display, const char* text)
+{
+	gdImageFilledRectangle(
+		fb->image,
+		0, 0, fb->image->sx - 1, fb->image->sy -1,
+		fb->clear_color
+	);
+	gdImageString(
+		fb->image,
+		gdFontGetTiny(),
+		0, 0,
+		(unsigned char*)text,
+		fb->draw_color
+	);
+
+	int err;
+	if((err = ssd1306_gd_display(fb, display)) != 0)
+	{
+		fprintf(stderr, "Error sending image: %s\n", ssd1306_error(display));
+		return err;
+	}
+
+	return 0;
+}
+
 int
 main(int argc, const char* argv[])
 {
+	setvbuf(stdout, NULL, _IOLBF, 1024);
+	setvbuf(stderr, NULL, _IOLBF, 1024);
+
 	int exit_code = EXIT_SUCCESS;
 	bool display_initialized = false;
 	hakomari_rpc_server_t rpc;
@@ -50,9 +81,6 @@ main(int argc, const char* argv[])
 
 	gpio_t accept_button, reject_button;
 	accept_button = reject_button = (gpio_t){ .fd = -1 };
-
-	unsigned int width, height;
-	assert(ssd1306_get_dimension(SSD1306_128_64, &width, &height) == 0);
 
 	if(argc != 2)
 	{
@@ -99,28 +127,10 @@ main(int argc, const char* argv[])
 		quit(EXIT_FAILURE);
 	}
 
+	if(show_text(&fb, &display, "Hakomari ready!") != 0) { quit(EXIT_FAILURE); }
+
 	while(true)
 	{
-		// Splash screen
-		gdImageFilledRectangle(
-			fb.image,
-			0, 0, width - 1, height -1,
-			fb.clear_color
-		);
-		gdImageString(
-			fb.image,
-			gdFontGetTiny(),
-			0, 0,
-			(unsigned char*)"Hakomari ready",
-			fb.draw_color
-		);
-
-		if(ssd1306_gd_display(&fb, &display) != 0)
-		{
-			fprintf(stderr, "Error sending image: %s\n", ssd1306_error(&display));
-			quit(EXIT_FAILURE);
-		}
-
 		hakomari_rpc_req_t* req = hakomari_rpc_next_req(&rpc);
 		if(req == NULL)
 		{
@@ -151,15 +161,8 @@ main(int argc, const char* argv[])
 
 			fprintf(stdout, "%s(\"%s\")\n", req->method, msg);
 
-			gdImageFilledRectangle(
-				fb.image,
-				0, 0, width - 1, height -1,
-				fb.clear_color
-			);
-			gdImageString(fb.image, gdFontGetTiny(), 0, 0, (unsigned char*)msg, fb.draw_color);
-			if(ssd1306_gd_display(&fb, &display) != 0)
+			if(show_text(&fb, &display, msg) != 0)
 			{
-				fprintf(stderr, "Error sending image: %s\n", ssd1306_error(&display));
 				hakomari_rpc_reply_error(req, "server-error");
 				quit(EXIT_FAILURE);
 			}
@@ -172,7 +175,7 @@ main(int argc, const char* argv[])
 
 			if(strcmp(req->method, "show") == 0)
 			{
-				if(!cmp_write_nil(req->cmp))
+				if(!cmp_write_bool(req->cmp, true))
 				{
 					fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&rpc));
 					continue;
@@ -201,9 +204,9 @@ main(int argc, const char* argv[])
 
 				struct pollfd pfds[2];
 				pfds[0].fd = gpio_fd(&accept_button);
-				pfds[0].events = POLLPRI | POLLERR;
+				pfds[0].events = POLLGPIO;
 				pfds[1].fd = gpio_fd(&reject_button);
-				pfds[1].events = POLLPRI | POLLERR;
+				pfds[1].events = POLLGPIO;
 
 				if(poll(pfds, 2, HAKOMARI_RPC_TIMEOUT) < 0)
 				{
@@ -223,20 +226,29 @@ main(int argc, const char* argv[])
 					continue;
 				}
 
-				bool accept_button_up = false;
-				if(gpio_read(&accept_button, &accept_button_up) != 0)
+				bool accept_button_released = (pfds[0].revents & POLLGPIO) > 0;
+				bool reject_button_up = false;
+				if(gpio_read(&reject_button, &reject_button_up) != 0)
 				{
-					fprintf(stderr, "Error checking button: %s\n", gpio_errmsg(&accept_button));
+					fprintf(stderr, "Error polling reject buttons: %s\n", gpio_errmsg(&reject_button));
 					continue;
 				}
 
-				if(!cmp_write_bool(req->cmp, !accept_button_up))
+				bool accepted = accept_button_released && reject_button_up;
+
+				if(!cmp_write_bool(req->cmp, accepted))
 				{
 					fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&rpc));
 					continue;
 				}
 
-				fprintf(stdout, "%s\n", !accept_button_up ? "accepted" : "rejected");
+				const char* decision = accepted ? "accepted" : "rejected";
+				fprintf(stdout, "%s\n", decision);
+
+				if(show_text(&fb, &display, decision) != 0)
+				{
+					quit(EXIT_FAILURE);
+				}
 			}
 
 			if(hakomari_rpc_end_result(req) != 0)
@@ -257,13 +269,7 @@ quit:
 
 	if(display_initialized)
 	{
-		gdImageFilledRectangle(
-			fb.image,
-			0, 0, width - 1, height -1,
-			fb.clear_color
-		);
-		ssd1306_gd_display(&fb, &display);
-
+		show_text(&fb, &display, "");
 		ssd1306_end(&display);
 		ssd1306_cleanup(&display);
 	}
