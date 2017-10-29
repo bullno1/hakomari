@@ -43,18 +43,40 @@ configure_button(gpio_t* gpio, int pin)
 static int
 show_text(ssd1306_gd_t* fb, ssd1306_t* display, const char* text)
 {
+	gdFontPtr font = gdFontGetTiny();
+
 	gdImageFilledRectangle(
 		fb->image,
 		0, 0, fb->image->sx - 1, fb->image->sy -1,
 		fb->clear_color
 	);
-	gdImageString(
-		fb->image,
-		gdFontGetTiny(),
-		0, 0,
-		(unsigned char*)text,
-		fb->draw_color
-	);
+
+	unsigned int x, y;
+	x = y = 0;
+
+	for(unsigned int i = 0; text[i] != '\0'; ++i)
+	{
+		char ch = text[i];
+		switch(ch)
+		{
+			case '\n':
+				x = 0;
+				y += font->h;
+				break;
+			case '\t':
+				x += font->w * 4;
+				break;
+			default:
+				gdImageChar(fb->image, font, x, y, ch, fb->draw_color);
+				x += font->w;
+				if((int)(x + font->w) > (int)fb->image->sx)
+				{
+					x = 0;
+					y += font->h;
+				}
+				break;
+		}
+	}
 
 	int err;
 	if((err = ssd1306_gd_display(fb, display)) != 0)
