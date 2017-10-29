@@ -1,10 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "hakomari-cfg.h"
 #include "hakomari-rpc.h"
 
 #define quit(code) do { exit_code = code; goto quit; } while(0)
+
+static bool
+strendwith(const char *str, const char *suffix)
+{
+	size_t str_len = strlen(str);
+	size_t suffix_len = strlen(suffix);
+	if(suffix_len > str_len) { return false; }
+	return strncmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
+}
 
 int
 main(int argc, const char* argv[])
@@ -27,7 +37,9 @@ main(int argc, const char* argv[])
 		quit(EXIT_FAILURE);
 	}
 
-	hakomari_rpc_req_t* req = hakomari_rpc_begin_req(&rpc, "show", 1);
+	bool confirm = strendwith(argv[0], "-confirm");
+	const char* method = confirm ? "confirm" : "show";
+	hakomari_rpc_req_t* req = hakomari_rpc_begin_req(&rpc, method, 1);
 	if(req == NULL)
 	{
 		fprintf(stderr, "Error starting request: %s\n", hakomari_rpc_strerror(&rpc));
@@ -49,8 +61,14 @@ main(int argc, const char* argv[])
 
 	if(rep->success)
 	{
-		cmp_read_nil(rep->cmp);
-		quit(EXIT_SUCCESS);
+		bool accepted = false;
+		if(!cmp_read_bool(req->cmp, &accepted))
+		{
+			fprintf(stderr, "Error reading result: %s\n", hakomari_rpc_strerror(&rpc));
+			quit(EXIT_FAILURE);
+		}
+
+		quit(accepted ? EXIT_SUCCESS : EXIT_FAILURE);
 	}
 	else
 	{

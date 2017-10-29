@@ -444,7 +444,7 @@ hakomari_rpc_stop_client(hakomari_rpc_client_t* client)
 hakomari_rpc_req_t*
 hakomari_rpc_begin_req(
 	hakomari_rpc_client_t* client,
-	hakomari_rpc_string_t method,
+	const hakomari_rpc_string_t method,
 	unsigned int num_args
 )
 {
