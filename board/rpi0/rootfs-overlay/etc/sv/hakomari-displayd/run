@@ -1,0 +1,22 @@
+#!/bin/runit-sv
+
+DEVICE="/dev/i2c-1"
+SV_ARGS="/dev/i2c"
+RUN_DIR="/var/run/hakomari"
+GPIO_DIR="/sys/class/gpio"
+DEVICES_DIR="/sys/devices"
+SANDBOX_MOUNTS="\
+	${GPIO_DIR}:${GPIO_DIR}:rw \
+	${RUN_DIR}:${RUN_DIR}:rw \
+	${DEVICE}:${SV_ARGS}:rw \
+	${DEVICES_DIR}:${DEVICES_DIR}:rw \
+	/etc/passwd:/etc/passwd:ro \
+	/etc/group:/etc/group:ro \
+"
+SANDBOX_ARGS="--user hakomari-displayd --group hakomari-daemon"
+SV_EXEC="exec sandbox-exec"
+
+mkdir -p /var/run/hakomari
+chown :hakomari-daemon /var/run/hakomari
+chmod u=rwx,g=rwx,o= /var/run/hakomari
+[ ! -e "${DEVICE}" ] && sv down ${SV_NAME} || true

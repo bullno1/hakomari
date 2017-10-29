@@ -1,0 +1,13 @@
+#!/bin/sh -e
+
+detect-container && exit 0 || true
+
+GPIO_PINS="4 5 6 17 22 23 27"
+
+for PIN in $GPIO_PINS
+do
+	echo $PIN > /sys/class/gpio/export
+	chown hakomari-displayd:hakomari-daemon /sys/class/gpio/gpio${PIN}/*
+done
+
+chown hakomari-displayd:hakomari-daemon /dev/i2c-1

@@ -7,7 +7,14 @@ define HAKOMARI_BUILD_CMDS
 endef
 
 define HAKOMARI_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/hakomari-displayd $(TARGET_DIR)/sbin/hakomari-displayd
+	$(INSTALL) -D -m 0755 $(@D)/hakomari-displayd $(TARGET_DIR)/sbin/
+	$(INSTALL) -D -m 0755 $(@D)/hakomari-show $(TARGET_DIR)/bin/
+	rm $(TARGET_DIR)/bin/hakomari-confirm
+	ln -s hakomari-show $(TARGET_DIR)/bin/hakomari-confirm
+endef
+
+define HAKOMARI_USERS
+	hakomari-displayd -1 hakomari-daemon -1 * - - - Display daemon
 endef
 
 $(eval $(generic-package))
