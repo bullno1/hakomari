@@ -5,7 +5,7 @@ case ${LEVEL} in
 	0|6)
 		for SERVICE in $(ls /run/service)
 		do
-			sv stop ${SERVICE} || true
+			sv force-stop ${SERVICE} || true
 		done
 
 		SIG_LEVEL0=USR1

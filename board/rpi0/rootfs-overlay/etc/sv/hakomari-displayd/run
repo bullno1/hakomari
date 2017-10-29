@@ -13,7 +13,8 @@ SANDBOX_MOUNTS="\
 	/etc/passwd:/etc/passwd:ro \
 	/etc/group:/etc/group:ro \
 "
-SANDBOX_ARGS="--user hakomari-displayd --group hakomari-daemon"
+SANDBOX_USER=hakomari-displayd
+SANDBOX_GROUP=hakomari-daemon
 SV_EXEC="exec sandbox-exec"
 
 mkdir -p /var/run/hakomari

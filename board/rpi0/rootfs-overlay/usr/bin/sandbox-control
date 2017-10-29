@@ -1,0 +1,41 @@
+#!/bin/sh -e
+
+CONTROL=$(basename $0)
+SV_NAME=$(basename $(pwd))
+SV_PID=$(cat /var/run/${SV_NAME}.pid)
+
+logger -t ${SV_NAME} -p daemon.notice -- "Received control: ${CONTROL}"
+
+case "$CONTROL" in
+	t)
+		SIGNAL=TERM
+		;;
+	p)
+		SIGNAL=STOP
+		;;
+	c)
+		SIGNAL=CONT
+		;;
+	h)
+		SIGNAL=HUP
+		;;
+	a)
+		SIGNAL=ALRM
+		;;
+	i)
+		SIGNAL=INT
+		;;
+	1)
+		SIGNAL=USR1
+		;;
+	2)
+		SIGNAL=USR2
+		;;
+	*)
+		logger -t ${SV_NAME} -p daemon.error -- "Unknown control: ${CONTROL}"
+		exit 1
+		;;
+esac
+
+logger -t ${SV_NAME} -p daemon.notice -- "kill -$SIGNAL $SV_PID"
+kill -$SIGNAL $SV_PID
