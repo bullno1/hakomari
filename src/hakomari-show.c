@@ -46,7 +46,39 @@ main(int argc, const char* argv[])
 		quit(EXIT_FAILURE);
 	}
 
-	if(!cmp_write_str(req->cmp, argv[1], strlen(argv[1])))
+	hakomari_rpc_string_t msg;
+	size_t msg_len = strlen(argv[1]);
+	size_t out = 0;
+	for(size_t i = 0; i < msg_len && i < sizeof(msg) - 1; ++i)
+	{
+		char ch = argv[1][i];
+		if(ch == '\\')
+		{
+			++i;
+			if(i >= msg_len) { break; }
+
+			switch(argv[1][i])
+			{
+				case 'n':
+					msg[out] = '\n';
+					break;
+				case '\\':
+					msg[out] = '\\';
+					break;
+				case 't':
+					msg[out] = '\t';
+					break;
+			}
+		}
+		else
+		{
+			msg[out] = ch;
+		}
+		++out;
+	}
+	msg[out] = '\0';
+
+	if(!cmp_write_str(req->cmp, msg, out))
 	{
 		fprintf(stderr, "Error while making request: %s\n", hakomari_rpc_strerror(&rpc));
 		quit(EXIT_FAILURE);
