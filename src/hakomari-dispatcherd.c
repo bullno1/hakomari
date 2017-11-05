@@ -297,7 +297,7 @@ enumerate_endpoints(
 			continue;
 		}
 
-		if(status_code != 0)
+		if(status_code != (uint8_t)HAKOMARI_OK)
 		{
 			fprintf(stderr, "%s replied with error: %d\n", dirent->d_name, status_code);
 			continue;
