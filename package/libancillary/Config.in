@@ -1,0 +1,8 @@
+config BR2_PACKAGE_LIBANCILLARY
+	bool "libancillary"
+	help
+	  This library provide an easy interface to the black magic that
+	  can be done on Unix domain sockets, like passing file
+	  descriptors from one process to another.
+
+	  https://www.normalesup.org/~george/comp/libancillary/

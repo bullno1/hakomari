@@ -3,6 +3,7 @@ config BR2_PACKAGE_HAKOMARI
 	select BR2_PACKAGE_C_PERIPHERY
 	select BR2_PACKAGE_GD
 	select BR2_PACKAGE_CMP
+	select BR2_PACKAGE_LIBANCILLARY
 	help
 	  Wallet daemons.
 

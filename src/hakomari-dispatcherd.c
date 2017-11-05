@@ -5,9 +5,14 @@
 #include <errno.h>
 #include <c-periphery/serial.h>
 #include <dirent.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <linux/memfd.h>
+#include <sys/syscall.h>
 #include <cmp.h>
+#include <ancillary.h>
 #include "hakomari-cfg.h"
 #include "hakomari-rpc.h"
 #define SLIPPER_API static
@@ -35,16 +40,6 @@ typedef enum hakomari_frame_type_e
 	HAKOMARI_FRAME_REQ = 0,
 	HAKOMARI_FRAME_REP,
 } hakomari_frame_type_t;
-
-typedef enum hakomari_error_e
-{
-	HAKOMARI_OK,
-	HAKOMARI_ERR_INVALID,
-	HAKOMARI_ERR_MEMORY,
-	HAKOMARI_ERR_AUTH_REQUIRED,
-	HAKOMARI_ERR_DENIED,
-	HAKOMARI_ERR_IO,
-} hakomari_error_t;
 
 struct hakomari_endpoint_s
 {
@@ -219,6 +214,7 @@ enumerate_endpoints(
 	}
 
 	uint32_t num_endpoints = 0;
+	int out_memfd = -1;
 
 	struct dirent* dirent;
 	while((dirent = readdir(dir)) != NULL)
@@ -238,6 +234,7 @@ enumerate_endpoints(
 			fprintf(stderr, "Error building path to endpoint socket: %s\n", strerror(errno));
 			continue;
 		}
+
 		int error = hakomari_rpc_start_client(rpc, path);
 		free(path);
 
@@ -247,10 +244,27 @@ enumerate_endpoints(
 			continue;
 		}
 
-		hakomari_rpc_req_t* req = hakomari_rpc_begin_req(rpc, "list", 0);
+		hakomari_rpc_req_t* req = hakomari_rpc_begin_req(rpc, "enumerate", 0);
 		if(req == NULL)
 		{
 			fprintf(stderr, "Error sending request: %s\n", hakomari_rpc_strerror(rpc));
+			continue;
+		}
+
+		struct hakomari_rpc_io_ctx_s* io = req->cmp->buf;
+		if(out_memfd >= 0) { close(out_memfd); }
+
+		out_memfd = syscall(__NR_memfd_create, "output", MFD_ALLOW_SEALING);
+		if(out_memfd < 0)
+		{
+			fprintf(stderr, "Error creating memfd: %s\n", strerror(errno));
+			continue;
+		}
+		fprintf(stdout, "Created memfd: %d\n", out_memfd);
+
+		if(ancil_send_fd(io->fd, out_memfd) < 0)
+		{
+			fprintf(stderr, "Error sending fd: %s\n", strerror(errno));
 			continue;
 		}
 
@@ -272,35 +286,59 @@ enumerate_endpoints(
 				continue;
 			}
 
-			fprintf(stderr, "%s reply with error: %s\n", dirent->d_name, error);
+			fprintf(stderr, "%s replied with error: %s\n", dirent->d_name, error);
 			continue;
 		}
 
-		if(!cmp_read_array(rep->cmp, &size))
+		uint8_t status_code;
+		if(!cmp_read_u8(rep->cmp, &status_code))
 		{
 			fprintf(stderr, "Error reading reply: %s\n", cmp_strerror(rep->cmp));
 			continue;
 		}
 
-		uint32_t num_created_endpoints = size;
-		for(uint32_t i = 0; i < num_created_endpoints; ++i)
+		if(status_code != 0)
 		{
-			struct hakomari_endpoint_s* endpoint = &endpoints[num_endpoints++];
-			if(num_endpoints > MAX_NUM_ENDPOINTS) { goto stop_iter; }
+			fprintf(stderr, "%s replied with error: %d\n", dirent->d_name, status_code);
+			continue;
+		}
 
+		// TODO: seal file
+		FILE* memfile = fdopen(out_memfd, "r");
+		if(memfile == NULL)
+		{
+			fprintf(stderr, "fdopen() failed: %s\n", strerror(errno));
+			continue;
+		}
+
+		if(fseek(memfile, 0, SEEK_SET) != 0)
+		{
+			fprintf(stderr, "fseek() failed: %s\n", strerror(errno));
+			continue;
+		}
+
+		while(num_endpoints < MAX_NUM_ENDPOINTS)
+		{
+			struct hakomari_endpoint_s* endpoint = &endpoints[num_endpoints];
 			strncpy(endpoint->type, dirent->d_name, sizeof(hakomari_string_t));
 
-			size = sizeof(endpoint->name);
-			if(!cmp_read_str(rep->cmp, endpoint->name, &size))
+			if(fgets(endpoint->name, sizeof(endpoint->name), memfile) == NULL)
 			{
-				fprintf(stderr, "Error reading reply: %s\n", cmp_strerror(rep->cmp));
-				--num_endpoints;
 				break;
 			}
+
+			size_t len = strlen(endpoint->name);
+			if(len <= 1) { continue; }
+
+			// Delete '\n'
+			endpoint->name[len - 1] = '\0';
+			++num_endpoints;
 		}
+
+		close(out_memfd);
+		out_memfd = -1;
 	}
 
-stop_iter:
 	fprintf(stderr, "Found %d endpoints\n", num_endpoints);
 	if(!cmp_write_array(cmp, num_endpoints))
 	{
@@ -322,7 +360,7 @@ stop_iter:
 			goto end;
 		}
 
-		if(!cmp_write_str(cmp, endpoints[0].type, strlen(endpoints[0].type)))
+		if(!cmp_write_str(cmp, endpoints[i].type, strlen(endpoints[i].type)))
 		{
 			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(cmp));
 			goto end;
@@ -334,7 +372,7 @@ stop_iter:
 			goto end;
 		}
 
-		if(!cmp_write_str(cmp, endpoints[0].name, strlen(endpoints[0].name)))
+		if(!cmp_write_str(cmp, endpoints[i].name, strlen(endpoints[i].name)))
 		{
 			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(cmp));
 			goto end;
@@ -342,6 +380,7 @@ stop_iter:
 	}
 
 end:
+	if(out_memfd >= 0) { close(out_memfd); }
 	hakomari_rpc_stop_client(rpc);
 	if(dir) { closedir(dir); }
 }

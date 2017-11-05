@@ -177,7 +177,6 @@ main(int argc, const char* argv[])
 			uint32_t size = sizeof(msg);
 			if(!cmp_read_str(req->cmp, msg, &size))
 			{
-				hakomari_rpc_reply_error(req, "invalid-arg");
 				continue;
 			}
 

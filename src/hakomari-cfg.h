@@ -13,4 +13,14 @@
 #define HAKOMARI_DISPLAYD_SOCK_PATH HAKOMARI_RUN_PATH "/displayd.sock"
 #endif
 
+typedef enum hakomari_error_e
+{
+	HAKOMARI_OK,
+	HAKOMARI_ERR_INVALID,
+	HAKOMARI_ERR_MEMORY,
+	HAKOMARI_ERR_AUTH_REQUIRED,
+	HAKOMARI_ERR_DENIED,
+	HAKOMARI_ERR_IO,
+} hakomari_error_t;
+
 #endif
