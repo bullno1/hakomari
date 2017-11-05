@@ -10,7 +10,7 @@ case "$2" in
 		cat "$1" > "${HAKOMARI_OUTPUT}"
 		;;
 	write)
-		cat "${$HAKOMARI_INPUT}" > "$1"
+		cat "${HAKOMARI_INPUT}" > "$1"
 		;;
 	*)
 		hakomari-show "Invalid operation"
