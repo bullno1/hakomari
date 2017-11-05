@@ -19,11 +19,11 @@
 
 static char* script_env[] = {
 	"HAKOMARI_OK=64",
-	"HAKOMARI_INVALID=65",
-	"HAKOMARI_MEMORY=66",
-	"HAKOMARI_AUTH_REQUIRED=67",
-	"HAKOMARI_DENIED=68",
-	"HAKOMARI_IO=69",
+	"HAKOMARI_ERR_INVALID=65",
+	"HAKOMARI_ERR_MEMORY=66",
+	"HAKOMARI_ERR_AUTH_REQUIRED=67",
+	"HAKOMARI_ERR_DENIED=68",
+	"HAKOMARI_ERR_IO=69",
 	"HAKOMARI_INPUT=/proc/self/fd/3",
 	"HAKOMARI_OUTPUT=/proc/self/fd/4",
 	NULL
@@ -110,8 +110,14 @@ handle_script_result(int ret, hakomari_rpc_req_t* req)
 		return;
 	}
 
-	if(ret != 0 && ret < 64) { ret = HAKOMARI_ERR_IO; }
-	if(ret >= 64) { ret -= 64; }
+	if(ret != 0 && ret < HAKOMARI_EXIT_CODE_OFFSET)
+	{
+		ret = HAKOMARI_ERR_IO;
+	}
+	else if(ret >= HAKOMARI_EXIT_CODE_OFFSET)
+	{
+		ret -= HAKOMARI_EXIT_CODE_OFFSET;
+	}
 
 	if(!cmp_write_u8(req->cmp, ret))
 	{
@@ -212,33 +218,17 @@ main(int argc, const char* argv[])
 			}
 		}
 
-		if(strcmp(req->method, "create") == 0 && req->num_args == 1)
-		{
-			struct hakomari_rpc_io_ctx_s* io = req->cmp->buf;
-			int input_fd;
-			if(ancil_recv_fd(io->fd, &input_fd) < 0)
-			{
-				fprintf(stderr, "Error receiving fd: %s\n", strerror(errno));
-				continue;
-			}
-
-			int ret = exec_script(
-				script_dir, "create", 1, args,
-				data_dir,
-				input_fd, devnull
-			);
-
-			close(input_fd);
-
-			handle_script_result(ret, req);
-		}
-		else if(strcmp(req->method, "destroy") == 0 && req->num_args == 1)
+		if(true
+			&& (strcmp(req->method, "create") == 0 || strcmp(req->method, "destroy") == 0)
+			&& req->num_args == 1
+		)
 		{
 			int ret = exec_script(
-				script_dir, "destroy", 1, args,
+				script_dir, req->method, 1, args,
 				data_dir,
 				devnull, devnull
 			);
+
 			handle_script_result(ret, req);
 		}
 		else if(strcmp(req->method, "query") == 0 && req->num_args == 2)

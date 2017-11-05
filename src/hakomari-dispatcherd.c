@@ -31,7 +31,7 @@
 #define MAX_NUM_ENDPOINTS 512
 #endif
 
-#define quit(code) do { exit_code = code; goto quit; } while(0)
+#define quit(value) do { result = value; goto quit; } while(0)
 
 typedef char hakomari_string_t[128];
 
@@ -45,6 +45,14 @@ struct hakomari_endpoint_s
 {
 	hakomari_string_t type;
 	hakomari_string_t name;
+};
+
+struct libhakomari_req_ctx_s
+{
+	cmp_ctx_t* cmp;
+	slipper_ctx_t* slipper;
+	hakomari_rpc_client_t* rpc;
+	uint32_t txid;
 };
 
 static slipper_error_t
@@ -129,37 +137,34 @@ cmp_slipper_write(cmp_ctx_t* ctx, const void *data, size_t count)
 }
 
 static bool
-begin_reply(
-	cmp_ctx_t* cmp, slipper_ctx_t* slipper,
-	uint32_t txid, hakomari_error_t result
-)
+begin_reply(struct libhakomari_req_ctx_s* req, hakomari_error_t result)
 {
 	slipper_error_t error;
-	if((error = slipper_begin_write(slipper, SERIAL_TIMEOUT)) != 0)
+	if((error = slipper_begin_write(req->slipper, SERIAL_TIMEOUT)) != 0)
 	{
 		fprintf(stderr, "Error sending reply: %s\n", slipper_errorstr(error));
 		return false;
 	}
 
-	if(!cmp_write_array(cmp, 3))
+	if(!cmp_write_array(req->cmp, 3))
 	{
 		fprintf(stderr, "Error sending reply: %s\n", strerror(errno));
 		return false;
 	}
 
-	if(!cmp_write_u8(cmp, HAKOMARI_FRAME_REP))
+	if(!cmp_write_u8(req->cmp, HAKOMARI_FRAME_REP))
 	{
 		fprintf(stderr, "Error sending reply: %s\n", strerror(errno));
 		return false;
 	}
 
-	if(!cmp_write_u32(cmp, txid))
+	if(!cmp_write_u32(req->cmp, req->txid))
 	{
 		fprintf(stderr, "Error sending reply: %s\n", strerror(errno));
 		return false;
 	}
 
-	if(!cmp_write_u8(cmp, result))
+	if(!cmp_write_u8(req->cmp, result))
 	{
 		fprintf(stderr, "Error sending reply: %s\n", strerror(errno));
 		return false;
@@ -169,11 +174,10 @@ begin_reply(
 }
 
 static bool
-end_reply(cmp_ctx_t* cmp, slipper_ctx_t* slipper)
+end_reply(struct libhakomari_req_ctx_s* req)
 {
-	(void)cmp;
 	slipper_error_t error;
-	if((error = slipper_end_write(slipper, SERIAL_TIMEOUT)) != 0)
+	if((error = slipper_end_write(req->slipper, SERIAL_TIMEOUT)) != 0)
 	{
 		fprintf(stderr, "Error sending reply: %s\n", slipper_errorstr(error));
 		return false;
@@ -182,29 +186,63 @@ end_reply(cmp_ctx_t* cmp, slipper_ctx_t* slipper)
 	return true;
 }
 
-static void
-handle_unrecognized_query(cmp_ctx_t* cmp, slipper_ctx_t* slipper, uint32_t txid)
+static bool
+reply_with_error(struct libhakomari_req_ctx_s* req, hakomari_error_t error)
 {
-	fprintf(stderr, "Unrecognized query\n");
+	if(!begin_reply(req, error)) { return false; }
+	if(!end_reply(req)) { return false; }
 
-	if(!begin_reply(cmp, slipper, txid, HAKOMARI_ERR_DENIED))
+	return true;
+}
+
+static int
+memfd_create(const char* name, unsigned int flags)
+{
+	int memfd = syscall(__NR_memfd_create, name, flags);
+	if(memfd < 0)
 	{
-		return;
+		fprintf(stderr, "Error creating memfd: %s\n", strerror(errno));
+		return memfd;
 	}
 
-	if(!end_reply(cmp, slipper))
+	fprintf(stdout, "Created memfd: %d\n", memfd);
+
+	return memfd;
+}
+
+static bool
+connect_to_endpoint(hakomari_rpc_client_t* rpc, const char* type)
+{
+	hakomari_rpc_stop_client(rpc);
+	char* path;
+	if(asprintf(&path, "%s/%s", HAKOMARI_ENDPOINT_PATH, type) <= 0)
 	{
-		return;
+		fprintf(stderr, "Error building path to endpoint socket: %s\n", strerror(errno));
+		return false;
 	}
+
+	int error = hakomari_rpc_start_client(rpc, path);
+	free(path);
+
+	if(error != 0)
+	{
+		fprintf(stderr, "Error connecting to endpoint: %s\n", hakomari_rpc_strerror(rpc));
+		return false;
+	}
+
+	return true;
 }
 
 static void
-enumerate_endpoints(
-	cmp_ctx_t* cmp, slipper_ctx_t* slipper, hakomari_rpc_client_t* rpc
-)
+enumerate_endpoints(struct libhakomari_req_ctx_s* libreq)
 {
-	(void)slipper;
 	struct hakomari_endpoint_s endpoints[MAX_NUM_ENDPOINTS];
+
+	if(slipper_end_read(libreq->slipper, SLIPPER_INFINITY) != SLIPPER_OK)
+	{
+		fprintf(stderr, "Error reading frame end: %s\n", strerror(errno));
+		return;
+	}
 
 	DIR* dir = opendir(HAKOMARI_ENDPOINT_PATH);
 	if(dir == NULL)
@@ -227,40 +265,20 @@ enumerate_endpoints(
 		strncpy(endpoint->type, "@provider", sizeof(hakomari_string_t));
 		strncpy(endpoint->name, dirent->d_name, sizeof(hakomari_string_t));
 
-		hakomari_rpc_stop_client(rpc);
-		char* path;
-		if(asprintf(&path, "%s/%s", HAKOMARI_ENDPOINT_PATH, dirent->d_name) <= 0)
-		{
-			fprintf(stderr, "Error building path to endpoint socket: %s\n", strerror(errno));
-			continue;
-		}
+		if(!connect_to_endpoint(libreq->rpc, dirent->d_name)) { continue; }
 
-		int error = hakomari_rpc_start_client(rpc, path);
-		free(path);
-
-		if(error != 0)
-		{
-			fprintf(stderr, "Error connecting to endpoint: %s\n", hakomari_rpc_strerror(rpc));
-			continue;
-		}
-
-		hakomari_rpc_req_t* req = hakomari_rpc_begin_req(rpc, "enumerate", 0);
+		hakomari_rpc_req_t* req = hakomari_rpc_begin_req(libreq->rpc, "enumerate", 0);
 		if(req == NULL)
 		{
-			fprintf(stderr, "Error sending request: %s\n", hakomari_rpc_strerror(rpc));
+			fprintf(stderr, "Error sending request: %s\n", hakomari_rpc_strerror(libreq->rpc));
 			continue;
 		}
 
 		struct hakomari_rpc_io_ctx_s* io = req->cmp->buf;
 		if(out_memfd >= 0) { close(out_memfd); }
 
-		out_memfd = syscall(__NR_memfd_create, "output", MFD_ALLOW_SEALING);
-		if(out_memfd < 0)
-		{
-			fprintf(stderr, "Error creating memfd: %s\n", strerror(errno));
-			continue;
-		}
-		fprintf(stdout, "Created memfd: %d\n", out_memfd);
+		out_memfd = memfd_create("enumerate-output", MFD_ALLOW_SEALING);
+		if(out_memfd < 0) { continue; }
 
 		if(ancil_send_fd(io->fd, out_memfd) < 0)
 		{
@@ -271,7 +289,7 @@ enumerate_endpoints(
 		hakomari_rpc_rep_t* rep = hakomari_rpc_end_req(req);
 		if(rep == NULL)
 		{
-			fprintf(stderr, "Error waiting for reply: %s\n", hakomari_rpc_strerror(rpc));
+			fprintf(stderr, "Error waiting for reply: %s\n", hakomari_rpc_strerror(libreq->rpc));
 			continue;
 		}
 
@@ -303,17 +321,17 @@ enumerate_endpoints(
 			continue;
 		}
 
+		if(lseek(out_memfd, 0, SEEK_SET) < 0)
+		{
+			fprintf(stderr, "lseek() failed: %s\n", strerror(errno));
+			continue;
+		}
+
 		// TODO: seal file
 		FILE* memfile = fdopen(out_memfd, "r");
 		if(memfile == NULL)
 		{
 			fprintf(stderr, "fdopen() failed: %s\n", strerror(errno));
-			continue;
-		}
-
-		if(fseek(memfile, 0, SEEK_SET) != 0)
-		{
-			fprintf(stderr, "fseek() failed: %s\n", strerror(errno));
 			continue;
 		}
 
@@ -339,59 +357,181 @@ enumerate_endpoints(
 		out_memfd = -1;
 	}
 
+	if(!begin_reply(libreq, HAKOMARI_OK)) { goto end; }
+
 	fprintf(stderr, "Found %d endpoints\n", num_endpoints);
-	if(!cmp_write_array(cmp, num_endpoints))
+	if(!cmp_write_array(libreq->cmp, num_endpoints))
 	{
-		fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(cmp));
+		fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
 		goto end;
 	}
 
 	for(uint32_t i = 0; i < num_endpoints; ++i)
 	{
-		if(!cmp_write_map(cmp, 2))
+		if(!cmp_write_map(libreq->cmp, 2))
 		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(cmp));
+			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
 			goto end;
 		}
 
-		if(!cmp_write_str(cmp, "type", sizeof("type") - 1))
+		if(!cmp_write_str(libreq->cmp, "type", sizeof("type") - 1))
 		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(cmp));
+			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
 			goto end;
 		}
 
-		if(!cmp_write_str(cmp, endpoints[i].type, strlen(endpoints[i].type)))
+		if(!cmp_write_str(libreq->cmp, endpoints[i].type, strlen(endpoints[i].type)))
 		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(cmp));
+			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
 			goto end;
 		}
 
-		if(!cmp_write_str(cmp, "name", sizeof("name") - 1))
+		if(!cmp_write_str(libreq->cmp, "name", sizeof("name") - 1))
 		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(cmp));
+			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
 			goto end;
 		}
 
-		if(!cmp_write_str(cmp, endpoints[i].name, strlen(endpoints[i].name)))
+		if(!cmp_write_str(libreq->cmp, endpoints[i].name, strlen(endpoints[i].name)))
 		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(cmp));
+			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
 			goto end;
 		}
 	}
 
+	if(!end_reply(libreq)) { goto end; }
 end:
 	if(out_memfd >= 0) { close(out_memfd); }
-	hakomari_rpc_stop_client(rpc);
+	hakomari_rpc_stop_client(libreq->rpc);
 	if(dir) { closedir(dir); }
+}
+
+static void
+create_or_destroy_endpoint(struct libhakomari_req_ctx_s* libreq, const char* query)
+{
+	uint8_t result = HAKOMARI_ERR_IO;
+	bool read_finished = false;
+	bool pipe_ok = true;
+	uint32_t size;
+	if(!cmp_read_map(libreq->cmp, &size))
+	{
+		fprintf(stderr, "Format error: %s\n", cmp_strerror(libreq->cmp));
+		quit(HAKOMARI_ERR_INVALID);
+	}
+
+	if(size != 2)
+	{
+		fprintf(stderr, "Format error\n");
+		quit(HAKOMARI_ERR_INVALID);
+	}
+
+	hakomari_string_t key, type, name;
+	memset(type, 0, sizeof(type));
+	memset(name, 0, sizeof(name));
+
+	for(uint32_t i = 0; i < 2; ++i)
+	{
+		size = sizeof(key);
+		if(!cmp_read_str(libreq->cmp, key, &size))
+		{
+			fprintf(stderr, "Format error: %s\n", cmp_strerror(libreq->cmp));
+			quit(HAKOMARI_ERR_INVALID);
+		}
+
+		char* value = NULL;
+		if(strcmp(key, "type") == 0)
+		{
+			value = type;
+		}
+		else if(strcmp(key, "name") == 0)
+		{
+			value = name;
+		}
+		else
+		{
+			fprintf(stderr, "Format error\n");
+			quit(HAKOMARI_ERR_INVALID);
+		}
+
+		size = sizeof(hakomari_string_t);
+		if(!cmp_read_str(libreq->cmp, value, &size))
+		{
+			fprintf(stderr, "Format error: %s\n", cmp_strerror(libreq->cmp));
+			quit(HAKOMARI_ERR_INVALID);
+		}
+	}
+
+	if(slipper_end_read(libreq->slipper, SERIAL_TIMEOUT) != SLIPPER_OK)
+	{
+		fprintf(stderr, "Error reading payload: %s\n", strerror(errno));
+		pipe_ok = false;
+		quit(HAKOMARI_ERR_IO);
+	}
+
+	read_finished = true;
+
+	if(!connect_to_endpoint(libreq->rpc, type))
+	{
+		quit(HAKOMARI_ERR_IO);
+	}
+
+	hakomari_rpc_req_t* req = hakomari_rpc_begin_req(libreq->rpc, query, 1);
+	if(req == NULL)
+	{
+		fprintf(stderr, "Error sending request: %s\n", hakomari_rpc_strerror(libreq->rpc));
+		quit(HAKOMARI_ERR_IO);
+	}
+
+	if(!cmp_write_str(req->cmp, name, strlen(name)))
+	{
+		fprintf(stderr, "Error sending request: %s\n", hakomari_rpc_strerror(libreq->rpc));
+		quit(HAKOMARI_ERR_IO);
+	}
+
+	hakomari_rpc_rep_t* rep = hakomari_rpc_end_req(req);
+	if(rep == NULL)
+	{
+		fprintf(stderr, "Error waiting for reply: %s\n", hakomari_rpc_strerror(libreq->rpc));
+		quit(HAKOMARI_ERR_IO);
+	}
+
+	if(!rep->success)
+	{
+		hakomari_string_t error;
+		size = sizeof(error);
+		if(!cmp_read_str(rep->cmp, error, &size))
+		{
+			fprintf(stderr, "Error reading error: %s\n", cmp_strerror(rep->cmp));
+			quit(HAKOMARI_ERR_IO);
+		}
+
+		fprintf(stderr, "%s replied with error: %s\n", type, error);
+		quit(HAKOMARI_ERR_IO);
+	}
+
+	if(!cmp_read_u8(rep->cmp, &result))
+	{
+		fprintf(stderr, "Error reading reply: %s\n", cmp_strerror(rep->cmp));
+		quit(HAKOMARI_ERR_IO);
+	}
+
+quit:
+	if(!read_finished && slipper_end_read(libreq->slipper, SERIAL_TIMEOUT) != SLIPPER_OK)
+	{
+		fprintf(stderr, "Error reading payload: %s\n", strerror(errno));
+		pipe_ok = false;
+	}
+
+	if(pipe_ok) { reply_with_error(libreq, result); }
+	hakomari_rpc_stop_client(libreq->rpc);
 }
 
 int
 main(int argc, const char* argv[])
 {
-	int exit_code = EXIT_SUCCESS;
+	int result = EXIT_SUCCESS;
 	bool serial_opened = false;
 	serial_t serial;
-	slipper_ctx_t slipper;
 	hakomari_rpc_client_t rpc;
 	hakomari_rpc_init_client(&rpc);
 
@@ -419,9 +559,17 @@ main(int argc, const char* argv[])
 		.memory_size = sizeof(serial_io_buf),
 		.memory = serial_io_buf
 	};
+	slipper_ctx_t slipper;
 	slipper_init(&slipper, &slipper_cfg);
+
 	cmp_ctx_t cmp;
 	cmp_init(&cmp, &slipper, cmp_slipper_read, NULL, cmp_slipper_write);
+
+	struct libhakomari_req_ctx_s libreq = {
+		.slipper = &slipper,
+		.cmp = &cmp,
+		.rpc = &rpc,
+	};
 
 	while(true)
 	{
@@ -431,8 +579,7 @@ main(int argc, const char* argv[])
 			quit(EXIT_FAILURE);
 		}
 
-		slipper_error_t error;
-		if((error = slipper_begin_read(&slipper, SLIPPER_INFINITY)) != 0)
+		if(slipper_begin_read(&slipper, SLIPPER_INFINITY) != SLIPPER_OK)
 		{
 			fprintf(stderr, "Error reading frame start: %s\n", strerror(errno));
 			quit(EXIT_FAILURE);
@@ -446,14 +593,21 @@ main(int argc, const char* argv[])
 		}
 
 		uint8_t frame_type;
-		if(!cmp_read_u8(&cmp, &frame_type) || frame_type != HAKOMARI_FRAME_REQ)
+		if(!cmp_read_u8(&cmp, &frame_type))
 		{
+			fprintf(stderr, "Format error: %s\n", cmp_strerror(libreq.cmp));
 			continue;
 		}
 
-		uint32_t txid;
-		if(!cmp_read_u32(&cmp, &txid))
+		if(frame_type != HAKOMARI_FRAME_REQ)
 		{
+			fprintf(stderr, "Format error\n");
+			continue;
+		}
+
+		if(!cmp_read_u32(&cmp, &libreq.txid))
+		{
+			fprintf(stderr, "Format error: %s\n", cmp_strerror(libreq.cmp));
 			continue;
 		}
 
@@ -461,12 +615,14 @@ main(int argc, const char* argv[])
 		size = sizeof(query);
 		if(!cmp_read_str(&cmp, query, &size))
 		{
+			fprintf(stderr, "Format error: %s\n", cmp_strerror(libreq.cmp));
 			continue;
 		}
 
 		cmp_object_t obj;
 		if(!cmp_read_object(&cmp, &obj))
 		{
+			fprintf(stderr, "Format error: %s\n", cmp_strerror(libreq.cmp));
 			continue;
 		}
 
@@ -483,18 +639,21 @@ main(int argc, const char* argv[])
 				target_endpoint = true;
 				if(obj.as.array_size != 2)
 				{
+					fprintf(stderr, "Format error\n");
 					continue;
 				}
 
 				size = sizeof(endpoint_type);
 				if(!cmp_read_str(&cmp, endpoint_type, &size))
 				{
+					fprintf(stderr, "Format error\n");
 					continue;
 				}
 
 				size = sizeof(endpoint_name);
 				if(!cmp_read_str(&cmp, endpoint_name, &size))
 				{
+					fprintf(stderr, "Format error\n");
 					continue;
 				}
 				break;
@@ -502,53 +661,37 @@ main(int argc, const char* argv[])
 				continue;
 		}
 
-		if((error = slipper_end_read(&slipper, SLIPPER_INFINITY)) != 0)
-		{
-			fprintf(stderr, "Error reading frame end: %s\n", strerror(errno));
-			quit(EXIT_FAILURE);
-		}
-
 		if(target_endpoint)
 		{
 			fprintf(
 				stdout, "Query: %s(%s, %s) (txid=%d)\n",
-				query, endpoint_type, endpoint_name, txid
+				query, endpoint_type, endpoint_name, libreq.txid
 			);
 
-			if(false)
-			{
-			}
-			else
-			{
-				handle_unrecognized_query(&cmp, &slipper, txid);
-			}
+			fprintf(stderr, "Not implemented\n");
+			reply_with_error(&libreq, HAKOMARI_ERR_DENIED);
 		}
 		else
 		{
-			fprintf(stdout, "Query: %s (txid=%d)\n", query, txid);
+			fprintf(stdout, "Query: %s (txid=%d)\n", query, libreq.txid);
 
 			if(strcmp(query, "enumerate") == 0)
 			{
-				if(!begin_reply(&cmp, &slipper, txid, HAKOMARI_OK))
-				{
-					continue;
-				}
-
-				enumerate_endpoints(&cmp, &slipper, &rpc);
-
-				if(!end_reply(&cmp, &slipper))
-				{
-					continue;
-				}
+				enumerate_endpoints(&libreq);
+			}
+			else if(strcmp(query, "create") == 0 || strcmp(query, "destroy") == 0)
+			{
+				create_or_destroy_endpoint(&libreq, query);
 			}
 			else
 			{
-				handle_unrecognized_query(&cmp, &slipper, txid);
+				fprintf(stderr, "Unrecognized query\n");
+				reply_with_error(&libreq, HAKOMARI_ERR_INVALID);
 			}
 		}
 	}
 
 quit:
 	if(serial_opened) { serial_close(&serial); }
-	return exit_code;
+	return result;
 }

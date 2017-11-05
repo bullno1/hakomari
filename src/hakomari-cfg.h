@@ -13,6 +13,8 @@
 #define HAKOMARI_DISPLAYD_SOCK_PATH HAKOMARI_RUN_PATH "/displayd.sock"
 #endif
 
+#define HAKOMARI_EXIT_CODE_OFFSET 64
+
 typedef enum hakomari_error_e
 {
 	HAKOMARI_OK,
