@@ -100,7 +100,7 @@ main(int argc, const char* argv[])
 			quit(EXIT_FAILURE);
 		}
 
-		quit(accepted ? EXIT_SUCCESS : EXIT_FAILURE);
+		quit(accepted ? EXIT_SUCCESS : (HAKOMARI_ERR_DENIED + HAKOMARI_EXIT_CODE_OFFSET));
 	}
 	else
 	{
