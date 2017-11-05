@@ -1,0 +1,10 @@
+#!/bin/sh -e
+
+if [ -f "$1" ]
+then
+	hakomari-show "File exists"
+	echo $HAKOMARI_ERR_DENIED
+	exit $HAKOMARI_ERR_DENIED
+fi
+
+touch "$1"

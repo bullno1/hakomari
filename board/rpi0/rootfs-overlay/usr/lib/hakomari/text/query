@@ -1,0 +1,19 @@
+#!/bin/sh -e
+
+if [ ! -f "$1" ];
+then
+	exit "$HAKOMARI_ERR_INVALID"
+fi
+
+case "$2" in
+	read)
+		cat "$1" > "${HAKOMARI_OUTPUT}"
+		;;
+	write)
+		cat "${$HAKOMARI_INPUT}" > "$1"
+		;;
+	*)
+		hakomari-show "Invalid operation"
+		exit ${HAKOMARI_ERR_INVALID}
+		;;
+esac
