@@ -5,7 +5,9 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/poll.h>
+#include <sys/mman.h>
 #include <unistd.h>
+#include <ancillary.h>
 #include <c-periphery/gpio.h>
 #include <gdfontt.h>
 #include "hakomari-cfg.h"
@@ -277,6 +279,69 @@ main(int argc, const char* argv[])
 				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&rpc));
 				continue;
 			}
+		}
+		else if(
+			strcmp(req->method, "stream-image") == 0 && req->num_args == 0
+		)
+		{
+			int image_fd = -1;
+			uint8_t* image_mem = NULL;
+			size_t length = fb.image->sx * fb.image->sy / 8;
+
+			struct hakomari_rpc_io_ctx_s* io = req->cmp->buf;
+			if(ancil_recv_fd(io->fd, &image_fd) < 0)
+			{
+				fprintf(stderr, "Error receiving fd: %s\n", strerror(errno));
+				goto end_stream_image;
+			}
+
+			// TODO: Chedk file size with lseek and seal file
+			image_mem = mmap(NULL, length, PROT_READ, MAP_SHARED, image_fd, 0);
+			if(image_mem == NULL)
+			{
+				fprintf(stderr, "Error mmap()-ing image fd: %s\n", strerror(errno));
+				goto end_stream_image;
+			}
+
+			while(true)
+			{
+				bool show_next;
+				if(!cmp_read_bool(req->cmp, &show_next) || !show_next)
+				{
+					goto end_stream_image;
+				}
+
+				gdImageFilledRectangle(
+					fb.image,
+					0, 0, fb.image->sx - 1, fb.image->sy -1,
+					fb.clear_color
+				);
+
+				int colors[] = { fb.clear_color, fb.draw_color };
+				for(size_t i = 0; i < length; ++i)
+				{
+					uint8_t byte = image_mem[i];
+					int x = (i * 8) % fb.image->sx;
+					int y = (i * 8) / fb.image->sx;
+					for(unsigned int j = 0; j < 8; ++j)
+					{
+						int color = colors[byte & 1];
+						gdImageSetPixel(fb.image, x + j, y, color);
+						byte >>= 1;
+					}
+				}
+
+				if(ssd1306_gd_display(&fb, &display) != 0)
+				{
+					fprintf(stderr, "Error sending image: %s\n", ssd1306_error(&display));
+					goto end_stream_image;
+				}
+			}
+
+end_stream_image:
+			show_text(&fb, &display, "");
+			if(image_mem != NULL) { munmap(image_mem, length); }
+			if(image_fd >= 0) { close(image_fd); }
 		}
 		else
 		{
