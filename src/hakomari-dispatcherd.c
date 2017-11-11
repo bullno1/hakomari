@@ -146,27 +146,14 @@ begin_reply(struct libhakomari_req_ctx_s* req, hakomari_error_t result)
 		return false;
 	}
 
-	if(!cmp_write_array(req->cmp, 3))
+	if(false
+		|| !cmp_write_array(req->cmp, 3)
+		|| !cmp_write_u8(req->cmp, HAKOMARI_FRAME_REP)
+		|| !cmp_write_u32(req->cmp, req->txid)
+		|| !cmp_write_u8(req->cmp, result)
+	)
 	{
-		fprintf(stderr, "Error sending reply: %s\n", strerror(errno));
-		return false;
-	}
-
-	if(!cmp_write_u8(req->cmp, HAKOMARI_FRAME_REP))
-	{
-		fprintf(stderr, "Error sending reply: %s\n", strerror(errno));
-		return false;
-	}
-
-	if(!cmp_write_u32(req->cmp, req->txid))
-	{
-		fprintf(stderr, "Error sending reply: %s\n", strerror(errno));
-		return false;
-	}
-
-	if(!cmp_write_u8(req->cmp, result))
-	{
-		fprintf(stderr, "Error sending reply: %s\n", strerror(errno));
+		fprintf(stderr, "Error sending reply: %s\n", cmp_strerror(req->cmp));
 		return false;
 	}
 
@@ -390,31 +377,13 @@ enumerate_endpoints(struct libhakomari_req_ctx_s* libreq)
 
 	for(uint32_t i = 0; i < num_endpoints; ++i)
 	{
-		if(!cmp_write_map(libreq->cmp, 2))
-		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
-			goto end;
-		}
-
-		if(!cmp_write_str(libreq->cmp, "type", sizeof("type") - 1))
-		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
-			goto end;
-		}
-
-		if(!cmp_write_str(libreq->cmp, endpoints[i].type, strlen(endpoints[i].type)))
-		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
-			goto end;
-		}
-
-		if(!cmp_write_str(libreq->cmp, "name", sizeof("name") - 1))
-		{
-			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
-			goto end;
-		}
-
-		if(!cmp_write_str(libreq->cmp, endpoints[i].name, strlen(endpoints[i].name)))
+		if(false
+			|| !cmp_write_map(libreq->cmp, 2)
+			|| !cmp_write_str(libreq->cmp, "type", sizeof("type") - 1)
+			|| !cmp_write_str(libreq->cmp, endpoints[i].type, strlen(endpoints[i].type))
+			|| !cmp_write_str(libreq->cmp, "name", sizeof("name") - 1)
+			|| !cmp_write_str(libreq->cmp, endpoints[i].name, strlen(endpoints[i].name))
+		)
 		{
 			fprintf(stderr, "Error writing reply: %s\n", cmp_strerror(libreq->cmp));
 			goto end;

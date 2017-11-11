@@ -106,17 +106,11 @@ static int
 hakomari_rpc_begin_rep(hakomari_rpc_req_t* req, bool success)
 {
 	struct hakomari_rpc_io_ctx_s* io = req->cmp->buf;
-	if(!cmp_write_array(req->cmp, 3))
-	{
-		return hakomari_rpc_set_cmp_error(req->cmp);
-	}
-
-	if(!cmp_write_u8(req->cmp, HAKOMARI_RPC_FRAME_REP))
-	{
-		return hakomari_rpc_set_cmp_error(req->cmp);
-	}
-
-	if(!cmp_write_bool(req->cmp, success))
+	if(false
+		|| !cmp_write_array(req->cmp, 3)
+		|| !cmp_write_u8(req->cmp, HAKOMARI_RPC_FRAME_REP)
+		|| !cmp_write_bool(req->cmp, success)
+	)
 	{
 		return hakomari_rpc_set_cmp_error(req->cmp);
 	}
@@ -449,25 +443,12 @@ hakomari_rpc_begin_req(
 )
 {
 	hakomari_rpc_req_t* req = &client->base.req;
-	if(!cmp_write_array(req->cmp, 3))
-	{
-		hakomari_rpc_set_cmp_error(req->cmp);
-		return NULL;
-	}
-
-	if(!cmp_write_u8(req->cmp, HAKOMARI_RPC_FRAME_REQ))
-	{
-		hakomari_rpc_set_cmp_error(req->cmp);
-		return NULL;
-	}
-
-	if(!cmp_write_str(req->cmp, method, strlen(method)))
-	{
-		hakomari_rpc_set_cmp_error(req->cmp);
-		return NULL;
-	}
-
-	if(!cmp_write_array(req->cmp, num_args))
+	if(false
+		|| !cmp_write_array(req->cmp, 3)
+		|| !cmp_write_u8(req->cmp, HAKOMARI_RPC_FRAME_REQ)
+		|| !cmp_write_str(req->cmp, method, strlen(method))
+		|| !cmp_write_array(req->cmp, num_args)
+	)
 	{
 		hakomari_rpc_set_cmp_error(req->cmp);
 		return NULL;
