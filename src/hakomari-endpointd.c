@@ -198,14 +198,18 @@ main(int argc, const char* argv[])
 
 		char* args[] = { name, query };
 
+		fprintf(stdout, "%s(", req->method);
+
 		if(req->num_args >= 1)
 		{
 			size = sizeof(name);
 			if(!cmp_read_str(req->cmp, name, &size))
 			{
-				fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
+				fprintf(stderr, "Error reading request (1): %s\n", cmp_strerror(req->cmp));
 				continue;
 			}
+
+			fprintf(stdout, "%s", name);
 		}
 
 		if(req->num_args >= 2)
@@ -213,10 +217,14 @@ main(int argc, const char* argv[])
 			size = sizeof(query);
 			if(!cmp_read_str(req->cmp, query, &size))
 			{
-				fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
+				fprintf(stderr, "Error reading request (2): %s\n", cmp_strerror(req->cmp));
 				continue;
 			}
+
+			fprintf(stdout, ", %s", query);
 		}
+
+		fprintf(stdout, ")\n");
 
 		if(true
 			&& (strcmp(req->method, "create") == 0 || strcmp(req->method, "destroy") == 0)
