@@ -10,5 +10,3 @@ SANDBOX_MOUNTS="\
 	/proc/sys/kernel/random/poolsize:/proc/sys/kernel/random/poolsize:rw \
 "
 SV_EXEC="exec sandbox-exec"
-
-[ ! -e "${RNG_DEV}" ] && sv down ${SV_NAME} || true

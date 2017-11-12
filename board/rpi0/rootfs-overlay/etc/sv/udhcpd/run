@@ -9,5 +9,3 @@ SANDBOX_MOUNTS="\
 SANDBOX_ARGS="--network"
 
 touch /var/run/udhcpd.leases
-
-[ "${DEV_MODE}" != "1" ] && sv down ${SV_NAME} || true

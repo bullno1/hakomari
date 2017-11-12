@@ -1,5 +1,3 @@
 #!/bin/runit-sv
 
 SV_ARGS="-L ${SV_NAME_PARAM} 115200 vt100"
-
-[ ! -e "/dev/${SV_NAME_PARAM}" ] && sv down ${SV_NAME} || true

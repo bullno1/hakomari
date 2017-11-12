@@ -20,4 +20,3 @@ SV_EXEC="exec sandbox-exec"
 mkdir -p /var/run/hakomari
 chown :hakomari-daemon /var/run/hakomari
 chmod u=rwx,g=rwx,o= /var/run/hakomari
-[ ! -e "${DEVICE}" ] && sv down ${SV_NAME} || true

@@ -2,15 +2,6 @@
 
 detect-container && exit 0 || true
 
-DEV_BUTTON=$(cat /sys/class/gpio/gpio6/value)
-if [ "${DEV_BUTTON}" = "0" ]
-then
-	DEV_MODE=1
-else
-	DEV_MODE=0
-fi
-export DEV_MODE
-
 cd /sys/kernel/config/usb_gadget/
 mkdir -p hakomari
 cd hakomari
@@ -34,7 +25,7 @@ echo 350 > configs/c.1/MaxPower
 mkdir -p functions/acm.usb0
 ln -s functions/acm.usb0 configs/c.1/
 
-if [ "${DEV_MODE}" = 1 ]
+if check-dev-mode
 then
 	mkdir -p functions/acm.usb1
 	ln -s functions/acm.usb1 configs/c.1/

@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/bin/sh -x
 
 /bin/mount -t proc proc /proc
 /bin/mount -o remount,rw /
@@ -13,9 +13,13 @@ exec > /var/log/boot.log 2>&1
 /bin/ln -s /proc/self/fd/0 /dev/stdin
 /bin/ln -s /proc/self/fd/1 /dev/stdout
 /bin/ln -s /proc/self/fd/2 /dev/stderr
-
 /bin/run-parts --exit-on-error /etc/init.d
 
 mkdir -p /var/run/runit
-ln -s /etc/runit/runsvdir/default /run/service
+
+RUN_LEVEL="default"
+/sbin/check-dev-mode && RUN_LEVEL="dev"
+/bin/detect-container && RUN_LEVEL="container"
+
+ln -s /etc/runit/runsvdir/${RUN_LEVEL} /run/service
 exec runsvdir -P /run/service

@@ -6,5 +6,3 @@ RESET_INTERVAL=3
 SV_ARGS="-F -T ${REBOOT_TIMEOUT} -t ${RESET_INTERVAL} ${DEVICE}"
 SANDBOX_MOUNTS="${DEVICE}:/dev/watchdog:rw"
 SV_EXEC="exec sandbox-exec"
-
-[ ! -e "${DEVICE}" ] && sv down ${SV_NAME} || true

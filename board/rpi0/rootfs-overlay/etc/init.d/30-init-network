@@ -1,5 +1,7 @@
 #!/bin/sh -e
 
+! check-dev-mode && exit 0 || true
+
 if detect-container
 then
 	ip link add name usb0 type dummy
