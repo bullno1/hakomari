@@ -778,6 +778,8 @@ int
 main(int argc, const char* argv[])
 {
 	signal(SIGPIPE, SIG_IGN);
+	setvbuf(stdout, NULL, _IOLBF, 1024);
+	setvbuf(stderr, NULL, _IOLBF, 1024);
 
 	int result = EXIT_SUCCESS;
 	bool serial_opened = false;
