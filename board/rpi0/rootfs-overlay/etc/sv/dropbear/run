@@ -3,3 +3,5 @@
 mkdir -p /var/run/dropbear
 
 SV_ARGS="-R -F -m -j -k -B"
+
+[ "${DEV_MODE}" != "1" ] && sv down ${SV_NAME} || true
