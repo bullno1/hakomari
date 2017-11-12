@@ -200,7 +200,7 @@ main(int argc, const char* argv[])
 			{
 				if(!cmp_write_bool(req->cmp, true))
 				{
-					fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&rpc));
+					fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
 					continue;
 				}
 			}
@@ -261,7 +261,7 @@ main(int argc, const char* argv[])
 
 				if(!cmp_write_bool(req->cmp, accepted))
 				{
-					fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&rpc));
+					fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
 					continue;
 				}
 

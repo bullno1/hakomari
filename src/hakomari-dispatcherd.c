@@ -641,7 +641,7 @@ get_passphrase_screen(
 		quit(HAKOMARI_ERR_IO);
 	}
 
-	hakomari_rpc_rep_t* rep = vault_rpc(rpc, type, name, "@get-passphrase-screen");
+	hakomari_rpc_rep_t* rep = vault_rpc(rpc, type, name, "get-passphrase-screen");
 	if(rep == NULL) { quit(HAKOMARI_ERR_IO); }
 
 	send_reply = false;
@@ -687,7 +687,7 @@ input_passphrase(
 	bool send_reply = true;
 
 	hakomari_rpc_req_t* req = begin_rpc(
-		rpc, HAKOMARI_ENDPOINT_PATH, "vault", type, "@input-passphrase", 1
+		rpc, HAKOMARI_ENDPOINT_PATH, "vault", type, "input-passphrase", 1
 	);
 	if(req == NULL) { quit(HAKOMARI_ERR_IO); }
 
@@ -708,6 +708,7 @@ input_passphrase(
 		}
 
 		uint32_t x, y;
+		bool down;
 		switch(obj.type)
 		{
 			case CMP_TYPE_NIL:
@@ -717,15 +718,16 @@ input_passphrase(
 					quit(HAKOMARI_ERR_IO);
 				}
 				inputing = false;
-				break;
+				continue;
 			case CMP_TYPE_ARRAY16:
 			case CMP_TYPE_ARRAY32:
 			case CMP_TYPE_FIXARRAY:
-				if(obj.as.array_size != 2) { quit(HAKOMARI_ERR_INVALID); }
+				if(obj.as.array_size != 3) { quit(HAKOMARI_ERR_INVALID); }
 
 				if(false
 					|| !cmp_read_uint(libreq->cmp, &x)
 					|| !cmp_read_uint(libreq->cmp, &y)
+					|| !cmp_read_bool(libreq->cmp, &down)
 				)
 				{
 					fprintf(stderr, "Error reading payload: %s\n", cmp_strerror(libreq->cmp));
@@ -733,9 +735,10 @@ input_passphrase(
 				}
 
 				if(false
-					|| !cmp_write_array(req->cmp, 2)
+					|| !cmp_write_array(req->cmp, 3)
 					|| !cmp_write_uint(req->cmp, x)
 					|| !cmp_write_uint(req->cmp, y)
+					|| !cmp_write_bool(req->cmp, down)
 				)
 				{
 					fprintf(stderr, "Error sending payload: %s\n", cmp_strerror(req->cmp));

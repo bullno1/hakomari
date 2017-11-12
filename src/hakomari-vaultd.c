@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/mman.h>
@@ -19,6 +20,9 @@
 #define NUM_CHAR_BUTTONS 9
 #define NUM_CONTROL_BUTTONS 3
 #define HALF_BUTTON_GAP 1
+
+// Single entry for now
+typedef struct passphrase_entry_s passphrase_cache_t;
 
 struct char_range_s
 {
@@ -55,6 +59,12 @@ struct button_slot_s
 	struct button_s button;
 };
 
+struct passphrase_entry_s
+{
+	hakomari_rpc_string_t endpoint;
+	hakomari_rpc_string_t passphrase;
+};
+
 static const struct char_range_s char_ranges[NUM_CHAR_BUTTONS] = {
 	{'0', '9'},
 	{'a', 'c'},
@@ -67,6 +77,8 @@ static const struct char_range_s char_ranges[NUM_CHAR_BUTTONS] = {
 	{'w', 'z'},
 };
 
+static const char symbols[] = "_!@#$%^&*()";
+
 static void
 write_image(gdImagePtr image, int draw_color, uint8_t* image_mem)
 {
@@ -78,7 +90,7 @@ write_image(gdImagePtr image, int draw_color, uint8_t* image_mem)
 
 			for(int i = 0; i < 8; ++i)
 			{
-				uint8_t filled = gdImageGetPixel(image, x + 8 - i, y) == draw_color;
+				uint8_t filled = gdImageGetPixel(image, x + 7 - i, y) == draw_color;
 				byte <<= 1;
 				byte |= filled;
 			}
@@ -114,7 +126,7 @@ draw_label(
 }
 
 static void
-draw_button(ssd1306_gd_t* fb, const struct button_slot_s* button_slot)
+draw_button(ssd1306_gd_t* fb, bool shift, const struct button_slot_s* button_slot)
 {
 	gdImageRectangle(
 		fb->image,
@@ -130,15 +142,15 @@ draw_button(ssd1306_gd_t* fb, const struct button_slot_s* button_slot)
 		case BUTTON_DUMMY:
 			break;
 		case BUTTON_SHIFT:
-			draw_label(fb, button_slot, "^");
+			draw_label(fb, button_slot, shift ? "SHIFT" : "shift");
 			break;
 		case BUTTON_BACKSPACE:
-			draw_label(fb, button_slot, "<");
+			draw_label(fb, button_slot, "del");
 			break;
 		case BUTTON_RANGE:
 			if(button->data.range.min == '0')
 			{
-				draw_label(fb, button_slot, "0-9");
+				draw_label(fb, button_slot,  shift ? "!@#$" : "0-9");
 			}
 			else
 			{
@@ -148,17 +160,24 @@ draw_button(ssd1306_gd_t* fb, const struct button_slot_s* button_slot)
 					++ch
 				)
 				{
-					label[ch - button->data.range.min] = ch;
+					label[ch - button->data.range.min] = shift ? toupper(ch) : ch;
 				}
-				label[4] = '\0';
+				label[button->data.range.max - button->data.range.min + 1] = '\0';
 
 				draw_label(fb, button_slot, label);
 			}
 			break;
 		case BUTTON_SINGLE:
-				label[0] = button->data.single;
-				label[1] = '\0';
-				draw_label(fb, button_slot, label);
+			if(isdigit(button->data.single))
+			{
+				label[0] = shift ? symbols[button->data.single - '0'] : button->data.single;
+			}
+			else
+			{
+				label[0] = shift ? toupper(button->data.single) : button->data.single;
+			}
+			label[1] = '\0';
+			draw_label(fb, button_slot, label);
 			break;
 	}
 }
@@ -166,14 +185,38 @@ draw_button(ssd1306_gd_t* fb, const struct button_slot_s* button_slot)
 static void
 draw_buttons(
 	ssd1306_gd_t* fb,
+	bool shift,
 	unsigned int num_buttons,
 	const struct button_slot_s* button_slot
 )
 {
 	for(unsigned int i = 0; i < num_buttons; ++i)
 	{
-		draw_button(fb, &button_slot[i]);
+		draw_button(fb, shift, &button_slot[i]);
 	}
+}
+
+static void
+draw_text_wrapped(
+	ssd1306_gd_t* fb,
+	int x, int y,
+	gdFontPtr font,
+	const char* string
+)
+{
+	gdImageString(fb->image, font, x, y, (unsigned char*)string, fb->draw_color);
+	/*int char_x = x;*/
+	/*int char_y = y;*/
+	/*for(const char* ch = string; *ch != '\0'; ++ch)*/
+	/*{*/
+		/*gdImageChar(fb->image, font, char_x, char_y, fb->draw_color, (unsigned char)*ch);*/
+		/*char_x += font->w;*/
+		/*if(char_x > fb->image->sx)*/
+		/*{*/
+			/*char_x = x;*/
+			/*char_y += font->h;*/
+		/*}*/
+	/*}*/
 }
 
 static int
@@ -208,6 +251,40 @@ randomly_assign_buttons(
 	}
 }
 
+static void
+init_cache(passphrase_cache_t* cache)
+{
+	memset(cache, 0, sizeof(*cache));
+}
+
+static bool
+get_cache(
+	passphrase_cache_t* cache, hakomari_rpc_string_t key, hakomari_rpc_string_t value)
+{
+	if(strcmp(cache->endpoint, key) != 0) { return false; }
+
+	strncpy(value, cache->passphrase, strlen(cache->passphrase));
+	return true;
+}
+
+static bool
+evict_cache(passphrase_cache_t* cache, hakomari_rpc_string_t key)
+{
+	if(strcmp(cache->endpoint, key) != 0) { return false; }
+
+	init_cache(cache);
+	return true;
+}
+
+
+static void
+put_cache(
+	passphrase_cache_t* cache, hakomari_rpc_string_t key, hakomari_rpc_string_t value)
+{
+	memcpy(cache->endpoint, key, sizeof(hakomari_rpc_string_t));
+	memcpy(cache->passphrase, value, sizeof(hakomari_rpc_string_t));
+}
+
 int
 main(int argc, const char* argv[])
 {
@@ -225,6 +302,12 @@ main(int argc, const char* argv[])
 	hakomari_rpc_client_t client;
 	hakomari_rpc_init_server(&server);
 	hakomari_rpc_init_client(&client);
+
+	if(argc != 3)
+	{
+		fprintf(stderr, "Usage: hakomari-vaultd <sock-path> <lock-path>\n");
+		quit(EXIT_FAILURE);
+	}
 
 	memfd = syscall(__NR_memfd_create, "passphrase-keyboard", MFD_ALLOW_SEALING);
 	if(memfd < 0)
@@ -256,56 +339,422 @@ main(int argc, const char* argv[])
 	const int button_width = screen_width / 4;
 	const int button_height = (screen_height - buttons_offset) / 3;
 
-	struct button_slot_s char_button_slots[NUM_CHAR_BUTTONS];
-	struct button_slot_s control_button_slots[NUM_CONTROL_BUTTONS];
+	struct button_slot_s button_slots[NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS];
 	struct button_s char_buttons[NUM_CHAR_BUTTONS];
 	struct button_s control_buttons[NUM_CONTROL_BUTTONS];
+	struct button_s single_buttons[NUM_CHAR_BUTTONS];
 
 	for(int i = 0; i < NUM_CHAR_BUTTONS; ++i)
 	{
-		char_button_slots[i].x = (i % 3) * button_width + HALF_BUTTON_GAP;
-		char_button_slots[i].y = buttons_offset + (i / 3) * button_height + HALF_BUTTON_GAP;
-		char_button_slots[i].w = button_width - HALF_BUTTON_GAP * 2;
-		char_button_slots[i].h = button_height - HALF_BUTTON_GAP * 2;
+		struct button_slot_s* button_slot = &button_slots[i];
+		button_slot->x = (i % 3) * button_width + HALF_BUTTON_GAP;
+		button_slot->y = buttons_offset + (i / 3) * button_height + HALF_BUTTON_GAP;
+		button_slot->w = button_width - HALF_BUTTON_GAP * 2;
+		button_slot->h = button_height - HALF_BUTTON_GAP * 2;
 		char_buttons[i].type = BUTTON_RANGE;
 		char_buttons[i].data.range = char_ranges[i];
 	}
 
 	for(int i = 0; i < NUM_CONTROL_BUTTONS; ++i)
 	{
-		control_button_slots[i].x = 3 * button_width + HALF_BUTTON_GAP;
-		control_button_slots[i].y = buttons_offset + i * button_height + HALF_BUTTON_GAP;
-		control_button_slots[i].w = button_width - HALF_BUTTON_GAP * 2;
-		control_button_slots[i].h = button_height - HALF_BUTTON_GAP * 2;
+		struct button_slot_s* button_slot = &button_slots[i + NUM_CHAR_BUTTONS];
+		button_slot->x = 3 * button_width + HALF_BUTTON_GAP;
+		button_slot->y = buttons_offset + i * button_height + HALF_BUTTON_GAP;
+		button_slot->w = button_width - HALF_BUTTON_GAP * 2;
+		button_slot->h = button_height - HALF_BUTTON_GAP * 2;
 		control_buttons[i].type = (enum button_type_e)i;
 	}
 
-	randomly_assign_buttons(NUM_CHAR_BUTTONS, char_button_slots, char_buttons);
-	randomly_assign_buttons(NUM_CONTROL_BUTTONS, control_button_slots, control_buttons);
-
-	if(hakomari_rpc_start_client(&client, HAKOMARI_DISPLAYD_SOCK_PATH) != 0)
+	if(hakomari_rpc_start_server(&server, argv[1], argv[2]) != 0)
 	{
-		fprintf(stderr, "Could not connect to rpc server: %s\n", hakomari_rpc_strerror(&client));
+		fprintf(stderr, "Error starting RPC server: %s\n", hakomari_rpc_strerror(&server));
 		quit(EXIT_FAILURE);
 	}
 
-	hakomari_rpc_req_t* req = hakomari_rpc_begin_req(&client, "stream-image", 0);
-	struct hakomari_rpc_io_ctx_s* io = req->cmp->buf;
-	if(ancil_send_fd(io->fd, memfd) < 0)
+	struct passphrase_entry_s cache;
+	init_cache(&cache);
+
+	while(true)
 	{
-		fprintf(stderr, "Error sending fd: %s\n", strerror(errno));
-		quit(EXIT_FAILURE);
+		hakomari_rpc_req_t* req = hakomari_rpc_next_req(&server);
+		if(req == NULL)
+		{
+			if(server.stopping)
+			{
+				fprintf(stdout, "Shutting down\n");
+				quit(EXIT_SUCCESS);
+			}
+			else
+			{
+				fprintf(stderr, "Error getting next request: %s\n", hakomari_rpc_strerror(&server));
+				quit(EXIT_FAILURE);
+			}
+		}
+
+		if(strcmp(req->method, "get-passphrase-screen") == 0 && req->num_args == 1)
+		{
+			if(!cmp_skip_object(req->cmp, NULL))
+			{
+				fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
+				continue;
+			}
+
+			fprintf(stdout, "%s()\n", req->method);
+
+			if(hakomari_rpc_begin_result(req) != 0)
+			{
+				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
+				continue;
+			}
+
+			unsigned int num_buttons = NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS;
+			if(false
+				|| !cmp_write_map(req->cmp, 3)
+				|| !cmp_write_str(req->cmp, "width", sizeof("width") - 1)
+				|| !cmp_write_uint(req->cmp, (unsigned int)fb.image->sx)
+				|| !cmp_write_str(req->cmp, "height", sizeof("height") - 1)
+				|| !cmp_write_uint(req->cmp, (unsigned int)fb.image->sy)
+				|| !cmp_write_str(req->cmp, "buttons", sizeof("buttons") - 1)
+				|| !cmp_write_array(req->cmp, num_buttons)
+			)
+			{
+				fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
+				continue;
+			}
+
+			for(unsigned int i = 0; i < NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS; ++i)
+			{
+				const struct button_slot_s* button = &button_slots[i];
+				if(false
+					|| !cmp_write_map(req->cmp, 4)
+					|| !cmp_write_str(req->cmp, "x", 1)
+					|| !cmp_write_uint(req->cmp, button->x)
+					|| !cmp_write_str(req->cmp, "y", 1)
+					|| !cmp_write_uint(req->cmp, button->y)
+					|| !cmp_write_str(req->cmp, "w", 1)
+					|| !cmp_write_uint(req->cmp, button->w)
+					|| !cmp_write_str(req->cmp, "h", 1)
+					|| !cmp_write_uint(req->cmp, button->h)
+				)
+				{
+					fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
+					continue;
+				}
+			}
+
+			if(hakomari_rpc_end_result(req) != 0)
+			{
+				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
+				continue;
+			}
+		}
+		else if(strcmp(req->method, "ask-passphrase") == 0 && req->num_args == 1)
+		{
+			hakomari_rpc_string_t endpoint, passphrase;
+
+			uint32_t size = sizeof(endpoint);
+			if(!cmp_read_str(req->cmp, endpoint, &size))
+			{
+				fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
+				continue;
+			}
+
+			fprintf(stdout, "%s(%s)\n", req->method, endpoint);
+
+			bool has_passphrase = get_cache(&cache, endpoint, passphrase);
+
+			if(hakomari_rpc_begin_result(req) != 0)
+			{
+				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
+				continue;
+			}
+
+			if(false
+				|| (has_passphrase && !cmp_write_str(req->cmp, passphrase, strlen(passphrase)))
+				|| (!has_passphrase && !cmp_write_nil(req->cmp))
+			)
+			{
+				fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
+				continue;
+			}
+
+			if(hakomari_rpc_end_result(req) != 0)
+			{
+				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
+				continue;
+			}
+		}
+		else if(strcmp(req->method, "forget-passphrase") == 0 && req->num_args == 1)
+		{
+			hakomari_rpc_string_t endpoint;
+
+			uint32_t size = sizeof(endpoint);
+			if(!cmp_read_str(req->cmp, endpoint, &size))
+			{
+				fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
+				continue;
+			}
+
+			fprintf(stdout, "%s(%s)\n", req->method, endpoint);
+
+			evict_cache(&cache, endpoint);
+
+			if(hakomari_rpc_begin_result(req) != 0)
+			{
+				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
+				continue;
+			}
+
+			if(!cmp_write_nil(req->cmp))
+			{
+				fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
+				continue;
+			}
+
+			if(hakomari_rpc_end_result(req) != 0)
+			{
+				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
+				continue;
+			}
+		}
+		else if(strcmp(req->method, "input-passphrase") == 0 && req->num_args == 1)
+		{
+			hakomari_rpc_string_t endpoint;
+
+			uint32_t size = sizeof(endpoint);
+			if(!cmp_read_str(req->cmp, endpoint, &size))
+			{
+				fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
+				continue;
+			}
+
+			fprintf(stdout, "%s(%s)\n", req->method, endpoint);
+
+			randomly_assign_buttons(
+				NUM_CHAR_BUTTONS, button_slots, char_buttons
+			);
+			randomly_assign_buttons(
+				NUM_CONTROL_BUTTONS, button_slots + NUM_CHAR_BUTTONS, control_buttons
+			);
+
+			if(hakomari_rpc_start_client(&client, HAKOMARI_DISPLAYD_SOCK_PATH) != 0)
+			{
+				fprintf(stderr, "Could not connect to rpc server: %s\n", hakomari_rpc_strerror(&client));
+				continue;
+			}
+
+			hakomari_rpc_req_t* stream_req = hakomari_rpc_begin_req(&client, "stream-image", 0);
+			struct hakomari_rpc_io_ctx_s* io = stream_req->cmp->buf;
+			if(ancil_send_fd(io->fd, memfd) < 0)
+			{
+				fprintf(stderr, "Error sending fd: %s\n", strerror(errno));
+				goto end_input_passphrase;
+			}
+
+			hakomari_rpc_string_t passphrase = { 0 };
+			unsigned int passphrase_length = 0;
+			bool reading_input = true;
+			uint32_t cursor_x = 0;
+			uint32_t cursor_y = 0;
+			bool shift = false;
+			while(reading_input && passphrase_length < sizeof(passphrase) - 1)
+			{
+				gdImageFilledRectangle(
+					fb.image,
+					0, 0, fb.image->sx - 1, fb.image->sy - 1,
+					fb.clear_color
+				);
+
+				draw_text_wrapped(&fb, 1, 0, gdFontGetTiny(), passphrase);
+
+				draw_buttons(
+					&fb, shift,
+					NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS, button_slots
+				);
+
+				gdImageChar(
+					fb.image,
+					gdFontGetTiny(),
+					cursor_x, cursor_y,
+					(unsigned char)'+',
+					fb.draw_color
+				);
+
+				write_image(fb.image, fb.draw_color, image_mem);
+
+				if(!cmp_write_bool(stream_req->cmp, true))
+				{
+					fprintf(stderr, "Error streaming image: %s\n", cmp_strerror(stream_req->cmp));
+					goto end_input_passphrase;
+				}
+
+				cmp_object_t obj;
+				if(!cmp_read_object(req->cmp, &obj))
+				{
+					fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
+					goto end_input_passphrase;
+				}
+
+				switch(obj.type)
+				{
+					case CMP_TYPE_NIL:
+						reading_input = false;
+						continue;
+					case CMP_TYPE_ARRAY16:
+					case CMP_TYPE_ARRAY32:
+					case CMP_TYPE_FIXARRAY:
+						if(obj.as.array_size != 3)
+						{
+							fprintf(stderr, "Error reading request: Format error\n");
+							goto end_input_passphrase;
+						}
+						break;
+					default:
+						fprintf(stderr, "Format error: %d\n", obj.type);
+						goto end_input_passphrase;
+				}
+
+				bool down;
+				if(false
+					|| !cmp_read_uint(req->cmp, &cursor_x)
+					|| !cmp_read_uint(req->cmp, &cursor_y)
+					|| !cmp_read_bool(req->cmp, &down)
+				)
+				{
+					fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
+					goto end_input_passphrase;
+				}
+
+				if(!down) { continue; }
+
+				struct button_s* clicked_button = NULL;
+				for(unsigned int i = 0; i < NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS; ++i)
+				{
+					struct button_slot_s* button_slot = &button_slots[i];
+					if(true
+						&& button_slot->x < cursor_x
+						&& cursor_x < button_slot->x + button_slot->w
+						&& button_slot->y < cursor_y
+						&& cursor_y < button_slot->y + button_slot->h
+					)
+					{
+						clicked_button = &button_slot->button;
+						break;
+					}
+				}
+
+				if(clicked_button == NULL) { continue; }
+
+				bool shuffle_chars = false;
+				bool shuffle_controls = false;
+				switch(clicked_button->type)
+				{
+					case BUTTON_DUMMY:
+						shuffle_controls = true;
+						shuffle_chars = true;
+						break;
+					case BUTTON_SHIFT:
+						shift = !shift;
+						shuffle_controls = true;
+						break;
+					case BUTTON_BACKSPACE:
+						if(passphrase_length > 0) { --passphrase_length; }
+						passphrase[passphrase_length] = '\0';
+						shuffle_controls = true;
+						shuffle_chars = true;
+						break;
+					case BUTTON_RANGE:
+						{
+							char min = clicked_button->data.range.min;
+							char max = clicked_button->data.range.max;
+							char range = max - min;
+
+							for(unsigned int i = 0; i < NUM_CHAR_BUTTONS; ++i)
+							{
+								if(i <= (unsigned char)range)
+								{
+									single_buttons[i].type = BUTTON_SINGLE;
+									single_buttons[i].data.single = min + i;
+								}
+								else
+								{
+									single_buttons[i].type = BUTTON_DUMMY;
+								}
+
+								randomly_assign_buttons(
+									NUM_CHAR_BUTTONS, button_slots, single_buttons
+								);
+							}
+						}
+						break;
+					case BUTTON_SINGLE:
+						{
+							char new_char = 0;
+							if(isdigit(clicked_button->data.single))
+							{
+								new_char = shift
+									? symbols[clicked_button->data.single - '0']
+									: clicked_button->data.single;
+							}
+							else
+							{
+								new_char = shift
+									? toupper(clicked_button->data.single)
+									: clicked_button->data.single;
+							}
+
+							passphrase[passphrase_length++] = new_char;
+							passphrase[passphrase_length] = '\0';
+						}
+						shuffle_chars = true;
+						shuffle_controls = true;
+						break;
+				}
+
+				if(shuffle_chars)
+				{
+					randomly_assign_buttons(
+						NUM_CHAR_BUTTONS, button_slots, char_buttons
+					);
+				}
+
+				if(shuffle_controls)
+				{
+					randomly_assign_buttons(
+						NUM_CONTROL_BUTTONS, button_slots + NUM_CHAR_BUTTONS, control_buttons
+					);
+				}
+			}
+
+			passphrase[passphrase_length] = 0;
+			put_cache(&cache, endpoint, passphrase);
+
+			if(hakomari_rpc_begin_result(req) != 0)
+			{
+				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
+				goto end_input_passphrase;
+			}
+
+			if(!cmp_write_u8(req->cmp, HAKOMARI_OK))
+			{
+				fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
+			}
+
+			if(hakomari_rpc_end_result(req) != 0)
+			{
+				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
+				goto end_input_passphrase;
+			}
+
+end_input_passphrase:
+			cmp_write_bool(stream_req->cmp, false);
+			hakomari_rpc_stop_client(&client);
+		}
+		else
+		{
+			hakomari_rpc_reply_error(req, "invalid-method");
+		}
 	}
-
-	gdImageFilledRectangle(fb.image, 0, 0, fb.image->sx - 1, fb.image->sy - 1, fb.clear_color);
-
-	draw_buttons(&fb, NUM_CHAR_BUTTONS, char_button_slots);
-	draw_buttons(&fb, NUM_CONTROL_BUTTONS, control_button_slots);
-
-	write_image(fb.image, fb.draw_color, image_mem);
-
-	cmp_write_bool(req->cmp, true);
-	fgetc(stdin);
 
 quit:
 	hakomari_rpc_stop_client(&client);

@@ -80,7 +80,7 @@ main(int argc, const char* argv[])
 
 	if(!cmp_write_str(req->cmp, msg, out))
 	{
-		fprintf(stderr, "Error while making request: %s\n", hakomari_rpc_strerror(&rpc));
+		fprintf(stderr, "Error while making request: %s\n", cmp_strerror(req->cmp));
 		quit(EXIT_FAILURE);
 	}
 
@@ -108,7 +108,7 @@ main(int argc, const char* argv[])
 		uint32_t size = sizeof(str);
 		if(!cmp_read_str(rep->cmp, str, &size))
 		{
-			fprintf(stderr, "Error reading error: %s\n", hakomari_rpc_strerror(&rpc));
+			fprintf(stderr, "Error reading error: %s\n", cmp_strerror(rep->cmp));
 			quit(EXIT_FAILURE);
 		}
 

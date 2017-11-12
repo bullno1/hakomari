@@ -121,7 +121,7 @@ handle_script_result(int ret, hakomari_rpc_req_t* req)
 
 	if(!cmp_write_u8(req->cmp, ret))
 	{
-		fprintf(stderr, "Error sending reply: %s\n", hakomari_rpc_strerror(req->cmp));
+		fprintf(stderr, "Error sending reply: %s\n", cmp_strerror(req->cmp));
 		return;
 	}
 
