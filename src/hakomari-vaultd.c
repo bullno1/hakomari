@@ -204,19 +204,19 @@ draw_text_wrapped(
 	const char* string
 )
 {
-	gdImageString(fb->image, font, x, y, (unsigned char*)string, fb->draw_color);
-	/*int char_x = x;*/
-	/*int char_y = y;*/
-	/*for(const char* ch = string; *ch != '\0'; ++ch)*/
-	/*{*/
-		/*gdImageChar(fb->image, font, char_x, char_y, fb->draw_color, (unsigned char)*ch);*/
-		/*char_x += font->w;*/
-		/*if(char_x > fb->image->sx)*/
-		/*{*/
-			/*char_x = x;*/
-			/*char_y += font->h;*/
-		/*}*/
-	/*}*/
+	int char_x = x;
+	int char_y = y;
+	for(const char* ch = string; *ch != '\0'; ++ch)
+	{
+		if((char_x + font->w) > fb->image->sx)
+		{
+			char_x = x;
+			char_y += font->h;
+		}
+
+		gdImageChar(fb->image, font, char_x, char_y, *ch, fb->draw_color);
+		char_x += font->w;
+	}
 }
 
 static int
@@ -557,6 +557,7 @@ main(int argc, const char* argv[])
 			uint32_t cursor_x = 0;
 			uint32_t cursor_y = 0;
 			bool shift = false;
+			gdFontPtr font = gdFontGetTiny();
 			while(reading_input && passphrase_length < sizeof(passphrase) - 1)
 			{
 				gdImageFilledRectangle(
@@ -565,18 +566,23 @@ main(int argc, const char* argv[])
 					fb.clear_color
 				);
 
-				draw_text_wrapped(&fb, 1, 0, gdFontGetTiny(), passphrase);
+				draw_text_wrapped(&fb, 0, 0, font, passphrase);
 
 				draw_buttons(
 					&fb, shift,
 					NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS, button_slots
 				);
 
-				gdImageChar(
+				gdImageLine(
 					fb.image,
-					gdFontGetTiny(),
-					cursor_x, cursor_y,
-					(unsigned char)'+',
+					cursor_x - 2, cursor_y,
+					cursor_x + 2, cursor_y,
+					fb.draw_color
+				);
+				gdImageLine(
+					fb.image,
+					cursor_x, cursor_y - 2,
+					cursor_x, cursor_y + 2,
 					fb.draw_color
 				);
 
