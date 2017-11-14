@@ -1,15 +1,15 @@
 #!/bin/sh -e
 
-PIDFILE="/var/run/${SV_NAME}.pid"
+SANDBOX_PIDFILE=${SANDBOX_PIDFILE:-"/var/run/${SV_NAME}.pid"}
 
-touch $PIDFILE
-chown ${SANDBOX_USER:-root}:${SANDBOX_GROUP:-root} $PIDFILE
-chmod u=rw,g=r,o= $PIDFILE
+touch $SANDBOX_PIDFILE
+chown ${SANDBOX_USER:-root}:${SANDBOX_GROUP:-root} $SANDBOX_PIDFILE
+chmod u=rw,g=r,o= $SANDBOX_PIDFILE
 
 exec hako-run \
 	${SANDBOX_ARGS} \
 	--user ${SANDBOX_USER:-root} \
 	--group ${SANDBOX_GROUP:-root} \
-	--pid-file /var/run/${SV_NAME}.pid \
+	--pid-file ${SANDBOX_PIDFILE} \
 	${SANDBOX_DIR:-sandbox} \
 	"$@"
