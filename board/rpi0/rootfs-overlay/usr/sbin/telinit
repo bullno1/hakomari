@@ -15,14 +15,23 @@ case ${LEVEL} in
 		kill -${SIG} 1
 		;;
 	*)
-		LEVEL_DIR="/etc/runit/runsvdir/$1"
-		if [ ! -e "${LEVEL_DIR}" ]
+		RUN_LEVEL_DIR="/etc/runit/runsvdir/$1"
+		if [ ! -e "${RUN_LEVEL_DIR}" ]
 		then
 			echo "Invalid level: $1" 2>1
 			exit 1
 		fi
 
-		rm /run/service
-		ln -s "/etc/runit/runsvdir/$1" /run/service
+		STAGING_DIR="/run/runit/$1"
+		rm -rf ${STAGING_DIR}
+		mkdir -p ${STAGING_DIR}
+		for SERVICE in $(ls ${RUN_LEVEL_DIR})
+		do
+			mkdir -p ${STAGING_DIR}/${SERVICE}
+			cp -r /etc/runit/runsvdir/$1/${SERVICE}/* ${STAGING_DIR}/${SERVICE}/
+		done
+
+		rm -rf /run/service
+		ln -s ${STAGING_DIR} /run/service
 		;;
 esac

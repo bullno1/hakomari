@@ -21,5 +21,6 @@ RUN_LEVEL="default"
 /sbin/check-dev-mode && RUN_LEVEL="dev"
 /bin/detect-container && RUN_LEVEL="container"
 
-ln -s /etc/runit/runsvdir/${RUN_LEVEL} /run/service
+/sbin/telinit ${RUN_LEVEL}
+
 exec runsvdir -P /run/service

@@ -7,13 +7,13 @@ cd $1
 
 echo "#!/bin/runit-sv" > run
 chmod +x run
-ln -s /var/run/runit/${SV_NAME} supervise
 ln -s /usr/lib/runit/sandbox-control control
 
 mkdir -p sandbox/.hako
 ln -s /bin/sandbox-init sandbox/.hako/init
+mkdir -p sandbox/lib
+touch sandbox/lib/.keepme
 
 mkdir -p log
 cd log
 ln -s /bin/runit-log run
-ln -s /var/run/runit/${SV_NAME}.log supervise

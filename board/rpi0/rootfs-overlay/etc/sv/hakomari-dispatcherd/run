@@ -1,20 +1,14 @@
 #!/bin/runit-sv
 
-DEVICE="/dev/ttyGS0"
+DEVICE="/dev/${SV_NAME_PARAM}"
 SV_ARGS="/dev/serial"
 RUN_DIR="/var/run/hakomari"
 SANDBOX_MOUNTS="\
 	${DEVICE}:${SV_ARGS}:rw \
 	${RUN_DIR}:${RUN_DIR}:rw \
-	/etc/passwd:/etc/passwd:ro \
-	/etc/group:/etc/group:ro \
 "
 SANDBOX_USER=hakomari-dispatcherd
 SANDBOX_GROUP=hakomari-daemon
 SV_EXEC="exec sandbox-exec"
 
 chown ${SANDBOX_USER}:${SANDBOX_GROUP} ${DEVICE}
-
-mkdir -p /var/run/hakomari/endpoints
-chown :hakomari-daemon /var/run/hakomari/endpoints
-chmod u=rwx,g=rwx,o= /var/run/hakomari/endpoints

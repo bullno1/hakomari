@@ -1,6 +1,6 @@
 #!/bin/runit-sv
 
-DEVICE="/dev/i2c-1"
+DEVICE="/dev/${SV_NAME_PARAM}"
 SV_ARGS="/dev/i2c"
 RUN_DIR="/var/run/hakomari"
 GPIO_DIR="/sys/class/gpio"
@@ -10,8 +10,6 @@ SANDBOX_MOUNTS="\
 	${RUN_DIR}:${RUN_DIR}:rw \
 	${DEVICE}:${SV_ARGS}:rw \
 	${DEVICES_DIR}:${DEVICES_DIR}:rw \
-	/etc/passwd:/etc/passwd:ro \
-	/etc/group:/etc/group:ro \
 "
 SANDBOX_USER=hakomari-displayd
 SANDBOX_GROUP=hakomari-daemon

@@ -5,8 +5,6 @@ RNG_DEV=/dev/hwrng
 SV_ARGS="--foreground"
 SANDBOX_MOUNTS="\
 	${RANDOM_DEV}:/dev/random:rw \
-	${RNG_DEV}:/dev/hwrng:rw \
-	/proc/sys/kernel/random/write_wakeup_threshold:/proc/sys/kernel/random/write_wakeup_threshold:rw \
-	/proc/sys/kernel/random/poolsize:/proc/sys/kernel/random/poolsize:rw \
+	${RNG_DEV}:/dev/hwrng:rw
 "
 SV_EXEC="exec sandbox-exec"
