@@ -215,8 +215,8 @@ begin_rpc(
 	if(hakomari_rpc_start_client(rpc, path) != 0)
 	{
 		fprintf(
-			stderr, "Error connecting to %s/%s: %s\n",
-			sock_dir, name, hakomari_rpc_strerror(rpc)
+			stderr, "Error connecting to %s: %s\n",
+			path, hakomari_rpc_strerror(rpc)
 		);
 		return NULL;
 	}

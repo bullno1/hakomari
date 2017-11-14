@@ -295,6 +295,8 @@ main(int argc, const char* argv[])
 				goto end_stream_image;
 			}
 
+			fprintf(stdout, "Received fd: %d\n", image_fd);
+
 			// TODO: Chedk file size with lseek and seal file
 			image_mem = mmap(NULL, length, PROT_READ, MAP_SHARED, image_fd, 0);
 			if(image_mem == NULL)
