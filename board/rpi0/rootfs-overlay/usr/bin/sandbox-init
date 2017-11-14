@@ -12,6 +12,40 @@ do
 	mount -o remount,${OPTIONS:-ro},bind .${DEST}
 done
 
+if [ -f ./proc/.init ]
+then
+	mount -t proc proc ./proc
+fi
+
+if [ -f ./dev/.init ]
+then
+	mount -t tmpfs none ./dev
+	mknod -m 622 ./dev/console c 5 1
+	mknod -m 666 ./dev/null c 1 7
+	mknod -m 666 ./dev/null c 1 3
+	mknod -m 666 ./dev/zero c 1 5
+	mknod -m 666 ./dev/ptmx c 5 2
+	mknod -m 666 ./dev/tty c 5 0
+	mknod -m 444 ./dev/random c 1 8
+	mknod -m 444 ./dev/urandom c 1 9
+	ln -s pts/ptmx ptmx
+	ln -s /proc/self/fd ./dev/fd
+	ln -s /proc/self/fd/0 ./dev/stdin
+	ln -s /proc/self/fd/1 ./dev/stdout
+	ln -s /proc/self/fd/2 ./dev/stderr
+	ln -s /proc/kcore ./dev/core
+	mkdir ./dev/pts
+	mkdir ./dev/shm
+	mount -t devpts -o mode=620 none ./dev/pts
+	mount -t tmpfs none ./dev/shm
+
+	if [ -e /dev/log ]
+	then
+		touch ./dev/log
+		mount -o bind /dev/log ./dev/log
+	fi
+fi
+
 # Hide sensitive directories
 mount -t tmpfs -o ro tmpfs .hako
 mount -t tmpfs -o ro tmpfs ./lib/modules
