@@ -15,6 +15,8 @@ SANDBOX_USER=hakomari-displayd
 SANDBOX_GROUP=hakomari-daemon
 SV_EXEC="exec sandbox-exec"
 
-mkdir -p /var/run/hakomari
+mkdir -p /var/run/hakomari/displayd
 chown :hakomari-daemon /var/run/hakomari
+chown :hakomari-daemon /var/run/hakomari/displayd
 chmod u=rwx,g=rwx,o= /var/run/hakomari
+chmod u=rwx,g=rwx,o= /var/run/hakomari/displayd
