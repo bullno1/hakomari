@@ -6,4 +6,6 @@ then
 	exit $HAKOMARI_ERR_DENIED
 fi
 
+hakomari-ask-passphrase "$1"
+
 touch "$1"

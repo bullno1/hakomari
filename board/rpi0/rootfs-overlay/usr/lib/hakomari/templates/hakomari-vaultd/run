@@ -1,0 +1,17 @@
+#!/bin/runit-sv
+
+RUN_DIR="/run/providers/${SV_NAME_PARAM}"
+SV_ARGS="\
+	/run/vault \
+	/run/vault.lock \
+"
+SANDBOX_MOUNTS="\
+	/bin:/bin:ro \
+	/run/displayd:/var/run/hakomari/displayd:ro \
+	/dev/log:/dev/log:rw \
+	${RUN_DIR}:/run:rw \
+"
+SANDBOX_USER="${HAKOMARI_VAULTD_UID}"
+SANDBOX_GROUP="${HAKOMARI_PROVIDER_GID}"
+SANDBOX_PIDFILE="${RUN_DIR}/vault.pid"
+SV_EXEC="exec sandbox-exec"

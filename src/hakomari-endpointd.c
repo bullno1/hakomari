@@ -64,21 +64,25 @@ exec_script(
 	{
 		if(dup2(input_fd, HAKOMARI_INPUT_FILENO) < 0)
 		{
+			fprintf(stderr, "dup2() failed: %s\n", strerror(errno));
 			_exit(EXIT_FAILURE);
 		}
 
 		if(dup2(output_fd, HAKOMARI_OUTPUT_FILENO) < 0)
 		{
+			fprintf(stderr, "dup2() failed: %s\n", strerror(errno));
 			_exit(EXIT_FAILURE);
 		}
 
 		if(chdir(working_dir) < 0)
 		{
+			fprintf(stderr, "chdir() failed: %s\n", strerror(errno));
 			_exit(EXIT_FAILURE);
 		}
 
 		if(execve(argv0, argv, script_env) < 0)
 		{
+			fprintf(stderr, "execve() failed: %s\n", strerror(errno));
 			_exit(EXIT_FAILURE);
 		}
 	}
@@ -135,6 +139,9 @@ handle_script_result(int ret, hakomari_rpc_req_t* req)
 int
 main(int argc, const char* argv[])
 {
+	setvbuf(stdout, NULL, _IOLBF, 1024);
+	setvbuf(stderr, NULL, _IOLBF, 1024);
+
 	int exit_code = EXIT_SUCCESS;
 	int devnull = -1;
 	hakomari_rpc_server_t rpc;

@@ -84,7 +84,7 @@ main(int argc, const char* argv[])
 		{
 			case CMP_TYPE_NIL:
 				quit(
-					strcmp(method, "ask-pasphrase") == 0
+					strcmp(method, "ask-passphrase") == 0
 						? HAKOMARI_EXIT_CODE_OFFSET + HAKOMARI_ERR_AUTH_REQUIRED
 						: HAKOMARI_OK
 				);

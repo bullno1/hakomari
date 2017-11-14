@@ -20,6 +20,8 @@ endef
 define HAKOMARI_USERS
 	hakomari-displayd -1 hakomari-daemon -1 * - - - Display daemon
 	hakomari-dispatcherd -1 hakomari-daemon -1 * - - - Dispatcher daemon
+	hakomari-endpointd -1 hakomari-daemon -1 * - - - Endpoint daemon
+	hakomari-vaultd -1 hakomari-daemon -1 * - - - Vault daemon
 endef
 
 $(eval $(generic-package))

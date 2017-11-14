@@ -5,8 +5,8 @@
 #define HAKOMARI_RUN_PATH "/var/run/hakomari"
 #endif
 
-#ifndef HAKOMARI_ENDPOINT_PATH
-#define HAKOMARI_ENDPOINT_PATH HAKOMARI_RUN_PATH "/endpoints"
+#ifndef HAKOMARI_PROVIDER_PATH
+#define HAKOMARI_PROVIDER_PATH HAKOMARI_RUN_PATH "/providers"
 #endif
 
 #ifndef HAKOMARI_DISPLAYD_SOCK_PATH

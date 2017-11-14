@@ -1,0 +1,29 @@
+#!/bin/sh -e
+
+mkdir -p /run/providers
+mkdir -p /run/service
+rm -rf /run/providers/*
+rm -rf /run/service/*
+
+for PROVIDER in $(ls /lib/hakomari/providers)
+do
+	DATA_DIR="/data/providers/$PROVIDER"
+	mkdir -p "${DATA_DIR}"
+	chmod u=rwx,g=,o= "${DATA_DIR}"
+	chown ${HAKOMARI_ENDPOINTD_UID}:${HAKOMARI_PROVIDER_GID} "${DATA_DIR}"
+
+	RUN_DIR="/run/providers/$PROVIDER"
+	mkdir -p "${RUN_DIR}"
+	chmod u=rwx,g=rwx,o= "${RUN_DIR}"
+	chown :${HAKOMARI_PROVIDER_GID} "${RUN_DIR}"
+
+	cp -R \
+		/lib/hakomari/templates/hakomari-endpointd \
+		/run/service/hakomari-endpointd@${PROVIDER}
+
+	cp -R \
+		/lib/hakomari/templates/hakomari-vaultd \
+		/run/service/hakomari-vaultd@${PROVIDER}
+done
+
+exec runsvdir -P /run/service

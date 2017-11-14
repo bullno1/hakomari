@@ -288,6 +288,9 @@ put_cache(
 int
 main(int argc, const char* argv[])
 {
+	setvbuf(stdout, NULL, _IOLBF, 1024);
+	setvbuf(stderr, NULL, _IOLBF, 1024);
+
 	(void)argc;
 	(void)argv;
 

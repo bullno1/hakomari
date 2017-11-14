@@ -1,0 +1,19 @@
+#!/bin/runit-sv
+
+RUN_DIR="/var/run/hakomari"
+DATA_DIR="/var/lib/hakomari"
+SANDBOX_MOUNTS="\
+	/usr/bin:/bin:ro \
+	/usr/sbin/hako-run:/sbin/hako-run:ro \
+	/dev/log:/dev/log:rw \
+	${RUN_DIR}:/run:rw \
+	${DATA_DIR}:/data:rw \
+"
+SANDBOX_ARGS="\
+	-e HAKOMARI_ENDPOINTD_UID=$(id -u hakomari-endpointd) \
+	-e HAKOMARI_VAULTD_UID=$(id -u hakomari-vaultd) \
+	-e HAKOMARI_PROVIDER_GID=$(id -g hakomari-vaultd) \
+"
+SV_EXEC="exec sandbox-exec"
+
+mkdir -p ${RUN_DIR} ${DATA_DIR}

@@ -1,0 +1,20 @@
+#!/bin/runit-sv
+
+RUN_DIR="/run/providers/${SV_NAME_PARAM}"
+DATA_DIR="/data/providers/${SV_NAME_PARAM}"
+SV_ARGS="\
+	/run/endpoint \
+	/run/endpoint.lock \
+	/lib/hakomari/providers/${SV_NAME_PARAM} \
+	/data \
+"
+SANDBOX_MOUNTS="\
+	/bin:/bin:ro \
+	/run/displayd:/var/run/hakomari/displayd:ro \
+	${RUN_DIR}:/run:rw \
+	${DATA_DIR}:/data:rw \
+"
+SANDBOX_USER="${HAKOMARI_ENDPOINTD_UID}"
+SANDBOX_GROUP="${HAKOMARI_PROVIDER_GID}"
+SANDBOX_PIDFILE="${RUN_DIR}/endpoint.pid"
+SV_EXEC="exec sandbox-exec"

@@ -10,7 +10,6 @@ exec > /var/log/boot.log 2>&1
 /bin/mkdir -p /dev/pts
 /bin/mount -a
 /bin/hostname -F /etc/hostname
-/bin/ln -s /dev/pts/ptmx /dev/ptmx
 /bin/ln -s /proc/self/fd /dev/fd
 /bin/ln -s /proc/self/fd/0 /dev/stdin
 /bin/ln -s /proc/self/fd/1 /dev/stdout

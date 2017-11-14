@@ -272,7 +272,7 @@ endpoint_rpc(
 	hakomari_error_t result = HAKOMARI_OK;
 
 	hakomari_rpc_req_t* req = begin_rpc(
-		rpc, HAKOMARI_ENDPOINT_PATH, "endpoint", type, query, num_args
+		rpc, HAKOMARI_PROVIDER_PATH, "endpoint", type, query, num_args
 	);
 	if(req == NULL) { quit(HAKOMARI_ERR_IO); }
 
@@ -321,7 +321,7 @@ enumerate_endpoints(struct libhakomari_req_ctx_s* libreq)
 		return;
 	}
 
-	DIR* dir = opendir(HAKOMARI_ENDPOINT_PATH);
+	DIR* dir = opendir(HAKOMARI_PROVIDER_PATH);
 	if(dir == NULL)
 	{
 		fprintf(stderr, "Error opening endpoint sock dir: %s\n", strerror(errno));
@@ -611,7 +611,7 @@ vault_rpc(
 )
 {
 	hakomari_rpc_req_t* req = begin_rpc(
-		rpc, HAKOMARI_ENDPOINT_PATH, "vault", type, method, 1
+		rpc, HAKOMARI_PROVIDER_PATH, "vault", type, method, 1
 	);
 	if(req == NULL) { return NULL; }
 
@@ -687,7 +687,7 @@ input_passphrase(
 	bool send_reply = true;
 
 	hakomari_rpc_req_t* req = begin_rpc(
-		rpc, HAKOMARI_ENDPOINT_PATH, "vault", type, "input-passphrase", 1
+		rpc, HAKOMARI_PROVIDER_PATH, "vault", type, "input-passphrase", 1
 	);
 	if(req == NULL) { quit(HAKOMARI_ERR_IO); }
 
