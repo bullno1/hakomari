@@ -7,11 +7,11 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <signal.h>
-#include <fcntl.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <linux/memfd.h>
 #include <sys/syscall.h>
+#include <linux/memfd.h>
+#include <linux/fcntl.h>
 #include <cmp.h>
 #include <ancillary.h>
 #include "hakomari-cfg.h"
@@ -366,7 +366,17 @@ enumerate_endpoints(struct libhakomari_req_ctx_s* libreq)
 			continue;
 		}
 
-		// TODO: seal file
+		if(syscall(
+			__NR_fcntl,
+			out_memfd,
+			F_ADD_SEALS,
+			F_SEAL_WRITE | F_SEAL_GROW | F_SEAL_SHRINK
+		) < 0)
+		{
+			fprintf(stderr, "Could not seal output file: %s\n", strerror(errno));
+			continue;
+		}
+
 		FILE* memfile = fdopen(out_memfd, "r");
 		if(memfile == NULL)
 		{
