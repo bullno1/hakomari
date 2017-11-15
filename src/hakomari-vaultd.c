@@ -8,8 +8,9 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <sys/random.h>
-#include <linux/memfd.h>
 #include <ancillary.h>
+#include <linux/memfd.h>
+#include <linux/fcntl.h>
 #include <assert.h>
 #include <gdfontt.h>
 #include "ssd1306_gd.h"
@@ -323,6 +324,14 @@ main(int argc, const char* argv[])
 	if(ftruncate(memfd, length) < 0)
 	{
 		fprintf(stderr, "Error resizing memfd: %s\n", strerror(errno));
+		quit(EXIT_FAILURE);
+	}
+
+	// Including both fcntl.h and linux/fcntl.h results in redefinition error
+	// so we just make the syscall ourselves
+	if(syscall(__NR_fcntl, memfd, F_ADD_SEALS, F_SEAL_SHRINK | F_SEAL_SEAL) < 0)
+	{
+		fprintf(stderr, "Error sealing memfd: %s\n", strerror(errno));
 		quit(EXIT_FAILURE);
 	}
 

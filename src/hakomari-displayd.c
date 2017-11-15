@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -6,6 +7,8 @@
 #include <errno.h>
 #include <sys/poll.h>
 #include <sys/mman.h>
+#include <sys/syscall.h>
+#include <linux/fcntl.h>
 #include <unistd.h>
 #include <ancillary.h>
 #include <c-periphery/gpio.h>
@@ -297,7 +300,34 @@ main(int argc, const char* argv[])
 
 			fprintf(stdout, "Received fd: %d\n", image_fd);
 
-			// TODO: Chedk file size with lseek and seal file
+			// Including fcntl.h and linux/fcntl.h at the same time results in
+			// redefinition error so make the syscall ourselves
+			int seals = syscall(__NR_fcntl, image_fd, F_GET_SEALS);
+			if(seals < 0)
+			{
+				fprintf(stderr, "Error geting seal: %s\n", strerror(errno));
+				goto end_stream_image;
+			}
+
+			if((seals & F_SEAL_SHRINK) == 0)
+			{
+				fprintf(stderr, "Image file does not have the correct seal\n");
+				goto end_stream_image;
+			}
+
+			off_t file_size = lseek(image_fd, 0, SEEK_END);
+			if(file_size < 0)
+			{
+				fprintf(stderr, "lseek() failed: %s\n", strerror(errno));
+				goto end_stream_image;
+			}
+
+			if(file_size < (off_t)length)
+			{
+				fprintf(stderr, "Image file is not big enough\n");
+				goto end_stream_image;
+			}
+
 			image_mem = mmap(NULL, length, PROT_READ, MAP_SHARED, image_fd, 0);
 			if(image_mem == NULL)
 			{
