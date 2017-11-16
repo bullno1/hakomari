@@ -6,6 +6,6 @@ then
 	exit $HAKOMARI_ERR_DENIED
 fi
 
-hakomari-ask-passphrase "$1"
+PASSPHRASE=$(hakomari-ask-passphrase)
 
-touch "$1"
+echo $PASSPHRASE > "$1"

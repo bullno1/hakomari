@@ -17,18 +17,6 @@
 #define HAKOMARI_INPUT_FILENO 3
 #define HAKOMARI_OUTPUT_FILENO 4
 
-static char* script_env[] = {
-	"HAKOMARI_OK=64",
-	"HAKOMARI_ERR_INVALID=65",
-	"HAKOMARI_ERR_MEMORY=66",
-	"HAKOMARI_ERR_AUTH_REQUIRED=67",
-	"HAKOMARI_ERR_DENIED=68",
-	"HAKOMARI_ERR_IO=69",
-	"HAKOMARI_INPUT=/proc/self/fd/3",
-	"HAKOMARI_OUTPUT=/proc/self/fd/4",
-	NULL
-};
-
 static int
 exec_script(
 	const char* script_dir, const char* script, unsigned int num_args, char* args[],
@@ -51,6 +39,25 @@ exec_script(
 	argv[0] = argv0;
 	memcpy(&argv[1], args, sizeof(char*) * num_args);
 	argv[num_args + 1] = NULL;
+
+	char hakomari_endpoint_env[PATH_MAX];
+	ret = snprintf(
+		hakomari_endpoint_env, PATH_MAX, "HAKOMARI_ENDPOINT=%s", num_args > 0 ? args[0] : ""
+	);
+	if(ret < 0 || ret >= PATH_MAX) { return -1; }
+
+	char* script_env[] = {
+		"HAKOMARI_OK=64",
+		"HAKOMARI_ERR_INVALID=65",
+		"HAKOMARI_ERR_MEMORY=66",
+		"HAKOMARI_ERR_AUTH_REQUIRED=67",
+		"HAKOMARI_ERR_DENIED=68",
+		"HAKOMARI_ERR_IO=69",
+		"HAKOMARI_INPUT=/proc/self/fd/3",
+		"HAKOMARI_OUTPUT=/proc/self/fd/4",
+		hakomari_endpoint_env,
+		NULL
+	};
 
 	pid_t pid = vfork();
 

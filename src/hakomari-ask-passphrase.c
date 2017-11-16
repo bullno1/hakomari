@@ -4,60 +4,42 @@
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <libgen.h>
+#include <linux/limits.h>
 #include "hakomari-cfg.h"
 #include "hakomari-rpc.h"
 
 #define quit(code) do { exit_code = code; goto quit; } while(0)
 
+static const char*
+env(const char* name, const char* default_value)
+{
+	const char* value = getenv(name);
+	return value != NULL ? value : default_value;
+}
+
 int
-main(int argc, const char* argv[])
+main()
 {
 	int exit_code = EXIT_SUCCESS;
-	const char* method = "ask-passphrase";
 
 	hakomari_rpc_client_t rpc;
 	hakomari_rpc_init_client(&rpc);
 
-	if(argc < 2)
-	{
-		fprintf(stderr, "Usage: hakomari-ask-passphrase [-d] <endpoint> [sock-path]\n");
-		quit(EXIT_FAILURE);
-	}
-
-	if(strcmp(argv[1], "-d") == 0)
-	{
-		method = "forget-passphrase";
-		--argc;
-		++argv;
-	}
-
-	if(argc < 2)
-	{
-		fprintf(stderr, "Usage: hakomari-ask-passphrase [-d] <endpoint> [sock-path]\n");
-		quit(EXIT_FAILURE);
-	}
-
-	const char* endpoint = argv[1];
-
-	const char* sock_path = "/run/vault";
-	if(argc > 2)
-	{
-		sock_path = argv[2];
-	}
-
-	if(hakomari_rpc_start_client(&rpc, sock_path) != 0)
+	if(hakomari_rpc_start_client(&rpc, env("HAKOMARI_VAULTD_SOCK", "/run/vault")) != 0)
 	{
 		fprintf(stderr, "Could not connect to rpc server: %s\n", hakomari_rpc_strerror(&rpc));
 		quit(EXIT_FAILURE);
 	}
 
-	hakomari_rpc_req_t* req = hakomari_rpc_begin_req(&rpc, method, 1);
+	hakomari_rpc_req_t* req = hakomari_rpc_begin_req(&rpc, "ask-passphrase", 1);
 	if(req == NULL)
 	{
 		fprintf(stderr, "Error starting request: %s\n", hakomari_rpc_strerror(&rpc));
 		quit(EXIT_FAILURE);
 	}
 
+	const char* endpoint = env("HAKOMARI_ENDPOINT", "");
 	if(!cmp_write_str(req->cmp, endpoint, strlen(endpoint)))
 	{
 		fprintf(stderr, "Error sending request: %s\n", cmp_strerror(req->cmp));
@@ -83,11 +65,7 @@ main(int argc, const char* argv[])
 		switch(obj.type)
 		{
 			case CMP_TYPE_NIL:
-				quit(
-					strcmp(method, "ask-passphrase") == 0
-						? HAKOMARI_EXIT_CODE_OFFSET + HAKOMARI_ERR_AUTH_REQUIRED
-						: HAKOMARI_OK
-				);
+				quit(HAKOMARI_EXIT_CODE_OFFSET + HAKOMARI_ERR_AUTH_REQUIRED);
 				break;
 			case CMP_TYPE_STR8:
 			case CMP_TYPE_STR16:
