@@ -21,9 +21,9 @@
 #define NUM_CHAR_BUTTONS 9
 #define NUM_CONTROL_BUTTONS 3
 #define HALF_BUTTON_GAP 1
-
-// Single entry for now
-typedef struct passphrase_entry_s passphrase_cache_t;
+#ifndef PASSPHRASE_CACHE_SIZE
+#define PASSPHRASE_CACHE_SIZE 32
+#endif
 
 struct char_range_s
 {
@@ -60,10 +60,23 @@ struct button_slot_s
 	struct button_s button;
 };
 
-struct passphrase_entry_s
+struct linked_list_node
 {
-	hakomari_rpc_string_t endpoint;
-	hakomari_rpc_string_t passphrase;
+	struct linked_list_node *next, *prev;
+};
+
+struct cache_entry_s
+{
+	struct linked_list_node lru_node;
+
+	hakomari_rpc_string_t key;
+	hakomari_rpc_string_t value;
+};
+
+struct cache_s
+{
+	struct cache_entry_s entries[PASSPHRASE_CACHE_SIZE];
+	struct linked_list_node head;
 };
 
 static const struct char_range_s char_ranges[NUM_CHAR_BUTTONS] = {
@@ -253,37 +266,106 @@ randomly_assign_buttons(
 }
 
 static void
-init_cache(passphrase_cache_t* cache)
+list_prepend(struct linked_list_node* list, struct linked_list_node* item)
 {
-	memset(cache, 0, sizeof(*cache));
+	item->prev = list;
+	item->next = list->next;
+	list->next->prev = item;
+	list->next = item;
+}
+
+static void
+list_append(struct linked_list_node* list, struct linked_list_node* item)
+{
+	item->next = list;
+	item->prev = list->prev;
+	list->prev->next = item;
+	list->prev = item;
+}
+
+static void
+list_unlink(struct linked_list_node* item)
+{
+	item->next->prev = item->prev;
+	item->prev->next = item->next;
+}
+
+static void
+cache_init(struct cache_s* cache)
+{
+	cache->head.next = &cache->head;
+	cache->head.prev = &cache->head;
+
+	for(unsigned int i = 0; i < PASSPHRASE_CACHE_SIZE; ++i)
+	{
+		struct cache_entry_s* entry = &cache->entries[i];
+		memset(entry->key, 0, sizeof(entry->key));
+		memset(entry->value, 0, sizeof(entry->value));
+		list_prepend(&cache->head, &entry->lru_node);
+	}
+}
+
+static struct cache_entry_s*
+cache_find(struct cache_s* cache, hakomari_rpc_string_t key)
+{
+	for(unsigned int i = 0; i < PASSPHRASE_CACHE_SIZE; ++i)
+	{
+		struct cache_entry_s* entry = &cache->entries[i];
+		if(strcmp(entry->key, key) == 0) { return entry; }
+	}
+
+	return NULL;
 }
 
 static bool
-get_cache(
-	passphrase_cache_t* cache, hakomari_rpc_string_t key, hakomari_rpc_string_t value)
+cache_get(
+	struct cache_s* cache,
+	hakomari_rpc_string_t key,
+	hakomari_rpc_string_t value
+)
 {
-	if(strcmp(cache->endpoint, key) != 0) { return false; }
+	struct cache_entry_s* entry = cache_find(cache, key);
+	if(entry == NULL) { return false; }
 
-	strncpy(value, cache->passphrase, strlen(cache->passphrase));
+	list_unlink(&entry->lru_node);
+	list_prepend(&cache->head, &entry->lru_node);
+	strcpy(value, entry->value);
+
 	return true;
 }
 
 static bool
-evict_cache(passphrase_cache_t* cache, hakomari_rpc_string_t key)
+cache_delete(struct cache_s* cache, hakomari_rpc_string_t key)
 {
-	if(strcmp(cache->endpoint, key) != 0) { return false; }
+	struct cache_entry_s* entry = cache_find(cache, key);
+	if(entry == NULL) { return false; }
 
-	init_cache(cache);
+	list_unlink(&entry->lru_node);
+	list_append(&cache->head, &entry->lru_node);
+	memset(entry->key, 0, sizeof(entry->key));
+	memset(entry->value, 0, sizeof(entry->value));
+
 	return true;
 }
 
 
 static void
-put_cache(
-	passphrase_cache_t* cache, hakomari_rpc_string_t key, hakomari_rpc_string_t value)
+cache_put(
+	struct cache_s* cache,
+	hakomari_rpc_string_t key,
+	hakomari_rpc_string_t value
+)
 {
-	memcpy(cache->endpoint, key, sizeof(hakomari_rpc_string_t));
-	memcpy(cache->passphrase, value, sizeof(hakomari_rpc_string_t));
+	struct cache_entry_s* entry = cache_find(cache, key);
+	if(entry == NULL)
+	{
+		entry = (struct cache_entry_s*)cache->head.prev;
+	}
+
+	list_unlink(&entry->lru_node);
+	list_prepend(&cache->head, &entry->lru_node);
+	strcpy(entry->key, key);
+	strcpy(entry->value, value);
 }
 
 int
@@ -383,8 +465,8 @@ main(int argc, const char* argv[])
 		quit(EXIT_FAILURE);
 	}
 
-	struct passphrase_entry_s cache;
-	init_cache(&cache);
+	struct cache_s cache;
+	cache_init(&cache);
 
 	while(true)
 	{
@@ -473,7 +555,7 @@ main(int argc, const char* argv[])
 
 			fprintf(stdout, "%s(%s)\n", req->method, endpoint);
 
-			bool has_passphrase = get_cache(&cache, endpoint, passphrase);
+			bool has_passphrase = cache_get(&cache, endpoint, passphrase);
 
 			if(hakomari_rpc_begin_result(req) != 0)
 			{
@@ -509,7 +591,7 @@ main(int argc, const char* argv[])
 
 			fprintf(stdout, "%s(%s)\n", req->method, endpoint);
 
-			evict_cache(&cache, endpoint);
+			cache_delete(&cache, endpoint);
 
 			if(hakomari_rpc_begin_result(req) != 0)
 			{
@@ -745,7 +827,10 @@ main(int argc, const char* argv[])
 			}
 
 			passphrase[passphrase_length] = 0;
-			put_cache(&cache, endpoint, passphrase);
+			if(passphrase_length > 0)
+			{
+				cache_put(&cache, endpoint, passphrase);
+			}
 
 			if(hakomari_rpc_begin_result(req) != 0)
 			{
