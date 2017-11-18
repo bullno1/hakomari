@@ -224,7 +224,7 @@ draw_text_wrapped(
 	{
 		if((char_x + font->w) > fb->image->sx)
 		{
-			char_x = x;
+			char_x = x + 1;
 			char_y += font->h;
 		}
 
