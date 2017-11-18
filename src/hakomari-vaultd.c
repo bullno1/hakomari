@@ -14,6 +14,7 @@
 #include <linux/fcntl.h>
 #include <assert.h>
 #include <gdfontt.h>
+#include <gdfonts.h>
 #include "ssd1306_gd.h"
 #include "hakomari-cfg.h"
 #include "hakomari-rpc.h"
@@ -427,8 +428,8 @@ main(int argc, const char* argv[])
 		quit(EXIT_FAILURE);
 	}
 
-	size_t length = fb.image->sx * fb.image->sy / 8;
-	if(ftruncate(memfd, length) < 0)
+	size_t image_mem_size = fb.image->sx * fb.image->sy / 8;
+	if(ftruncate(memfd, image_mem_size) < 0)
 	{
 		fprintf(stderr, "Error resizing memfd: %s\n", strerror(errno));
 		quit(EXIT_FAILURE);
@@ -442,7 +443,7 @@ main(int argc, const char* argv[])
 		quit(EXIT_FAILURE);
 	}
 
-	image_mem = mmap(NULL, length, PROT_READ | PROT_WRITE, MAP_SHARED, memfd, 0);
+	image_mem = mmap(NULL, image_mem_size, PROT_READ | PROT_WRITE, MAP_SHARED, memfd, 0);
 	if(image_mem == NULL)
 	{
 		fprintf(stderr, "Error mmap()-ing image fd: %s\n", strerror(errno));
@@ -520,45 +521,40 @@ main(int argc, const char* argv[])
 
 			fprintf(stdout, "%s()\n", req->method);
 
+			gdImageFilledRectangle(
+				fb.image,
+				0, 0, fb.image->sx - 1, fb.image->sy - 1,
+				fb.clear_color
+			);
+			draw_text_wrapped(&fb, 0, 0, gdFontGetSmall(), "Check device's screen");
+			for(unsigned int i = 0; i < NUM_CONTROL_BUTTONS + NUM_CHAR_BUTTONS; ++i)
+			{
+				button_slots[i].button.type = BUTTON_DUMMY;
+			}
+			draw_buttons(
+				&fb, false,
+				NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS, button_slots
+			);
+			write_image(fb.image, fb.draw_color, image_mem);
+
 			if(hakomari_rpc_begin_result(req) != 0)
 			{
 				fprintf(stderr, "Error sending result: %s\n", hakomari_rpc_strerror(&server));
 				continue;
 			}
 
-			unsigned int num_buttons = NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS;
 			if(false
 				|| !cmp_write_map(req->cmp, 3)
 				|| !cmp_write_str(req->cmp, "width", sizeof("width") - 1)
 				|| !cmp_write_uint(req->cmp, (unsigned int)fb.image->sx)
 				|| !cmp_write_str(req->cmp, "height", sizeof("height") - 1)
 				|| !cmp_write_uint(req->cmp, (unsigned int)fb.image->sy)
-				|| !cmp_write_str(req->cmp, "buttons", sizeof("buttons") - 1)
-				|| !cmp_write_array(req->cmp, num_buttons)
+				|| !cmp_write_str(req->cmp, "image_data", sizeof("image_data") - 1)
+				|| !cmp_write_bin(req->cmp, image_mem, image_mem_size)
 			)
 			{
 				fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
 				continue;
-			}
-
-			for(unsigned int i = 0; i < NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS; ++i)
-			{
-				const struct button_slot_s* button = &button_slots[i];
-				if(false
-					|| !cmp_write_map(req->cmp, 4)
-					|| !cmp_write_str(req->cmp, "x", 1)
-					|| !cmp_write_uint(req->cmp, button->x)
-					|| !cmp_write_str(req->cmp, "y", 1)
-					|| !cmp_write_uint(req->cmp, button->y)
-					|| !cmp_write_str(req->cmp, "w", 1)
-					|| !cmp_write_uint(req->cmp, button->w)
-					|| !cmp_write_str(req->cmp, "h", 1)
-					|| !cmp_write_uint(req->cmp, button->h)
-				)
-				{
-					fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
-					continue;
-				}
 			}
 
 			if(hakomari_rpc_end_result(req) != 0)
@@ -901,7 +897,7 @@ quit:
 	cache_init(&cache);
 	hakomari_rpc_stop_client(&client);
 
-	if(image_mem != NULL) { munmap(image_mem, length); }
+	if(image_mem != NULL) { munmap(image_mem, image_mem_size); }
 	if(memfd >= 0) { close(memfd); }
 
 	return exit_code;
