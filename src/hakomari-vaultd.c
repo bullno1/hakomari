@@ -694,7 +694,10 @@ main(int argc, const char* argv[])
 					fb.clear_color
 				);
 
-				draw_text_wrapped(&fb, 0, 0, font, passphrase);
+				draw_text_wrapped(
+					&fb, 0, 0, font,
+					passphrase_length > 0 ? passphrase : "Enter passphrase"
+				);
 
 				draw_buttons(
 					&fb, shift,
