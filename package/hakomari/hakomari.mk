@@ -13,6 +13,7 @@ define HAKOMARI_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 $(@D)/hakomari-vaultd $(TARGET_DIR)/bin/
 	$(INSTALL) -D -m 0755 $(@D)/hakomari-show $(TARGET_DIR)/bin/
 	$(INSTALL) -D -m 0755 $(@D)/hakomari-ask-passphrase $(TARGET_DIR)/bin/
+	$(INSTALL) -D -m 0755 $(@D)/hakomari-remember-passphrase $(TARGET_DIR)/bin/
 	rm -f $(TARGET_DIR)/bin/hakomari-confirm
 	ln -s hakomari-show $(TARGET_DIR)/bin/hakomari-confirm
 endef

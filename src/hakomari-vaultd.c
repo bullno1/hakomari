@@ -5,6 +5,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <unistd.h>
+#include <time.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <sys/random.h>
@@ -24,11 +25,21 @@
 #ifndef PASSPHRASE_CACHE_SIZE
 #define PASSPHRASE_CACHE_SIZE 32
 #endif
+#ifndef PASSPHRASE_CACHE_ENTRY_TTL
+#define PASSPHRASE_CACHE_ENTRY_TTL 60
+#endif
 
 struct char_range_s
 {
 	char min;
 	char max;
+};
+
+enum passphrase_entry_state_e
+{
+	PASSPHRASE_UNUSED,
+	PASSPHRASE_FILLED,
+	PASSPHRASE_REMEMBERED
 };
 
 enum button_type_e
@@ -68,6 +79,8 @@ struct linked_list_node
 struct cache_entry_s
 {
 	struct linked_list_node lru_node;
+	enum passphrase_entry_state_e state;
+	time_t expire_at;
 
 	hakomari_rpc_string_t key;
 	hakomari_rpc_string_t value;
@@ -301,6 +314,8 @@ cache_init(struct cache_s* cache)
 		struct cache_entry_s* entry = &cache->entries[i];
 		memset(entry->key, 0, sizeof(entry->key));
 		memset(entry->value, 0, sizeof(entry->value));
+		entry->expire_at = 0;
+		entry->state = PASSPHRASE_UNUSED;
 		list_prepend(&cache->head, &entry->lru_node);
 	}
 }
@@ -311,6 +326,8 @@ cache_find(struct cache_s* cache, hakomari_rpc_string_t key)
 	for(unsigned int i = 0; i < PASSPHRASE_CACHE_SIZE; ++i)
 	{
 		struct cache_entry_s* entry = &cache->entries[i];
+		if(entry->state == PASSPHRASE_UNUSED) { continue; }
+
 		if(strcmp(entry->key, key) == 0) { return entry; }
 	}
 
@@ -327,27 +344,33 @@ cache_get(
 	struct cache_entry_s* entry = cache_find(cache, key);
 	if(entry == NULL) { return false; }
 
+	if(entry->state == PASSPHRASE_REMEMBERED)
+	{
+		struct timespec time;
+		if(clock_gettime(CLOCK_MONOTONIC, &time) != 0)
+		{
+			fprintf(stderr, "Could not get time: %s\n", strerror(errno));
+			return NULL;
+		}
+
+		if(time.tv_sec > entry->expire_at)
+		{
+			memset(entry->key, 0, sizeof(entry->key));
+			memset(entry->value, 0, sizeof(entry->value));
+			entry->state = PASSPHRASE_UNUSED;
+			fprintf(stdout, "%s expired\n", key);
+			return false;
+		}
+	}
+
+	entry->state = PASSPHRASE_REMEMBERED;
+
 	list_unlink(&entry->lru_node);
 	list_prepend(&cache->head, &entry->lru_node);
 	strcpy(value, entry->value);
 
 	return true;
 }
-
-static bool
-cache_delete(struct cache_s* cache, hakomari_rpc_string_t key)
-{
-	struct cache_entry_s* entry = cache_find(cache, key);
-	if(entry == NULL) { return false; }
-
-	list_unlink(&entry->lru_node);
-	list_append(&cache->head, &entry->lru_node);
-	memset(entry->key, 0, sizeof(entry->key));
-	memset(entry->value, 0, sizeof(entry->value));
-
-	return true;
-}
-
 
 static void
 cache_put(
@@ -366,6 +389,8 @@ cache_put(
 	list_prepend(&cache->head, &entry->lru_node);
 	strcpy(entry->key, key);
 	strcpy(entry->value, value);
+	entry->expire_at = 0;
+	entry->state = PASSPHRASE_FILLED;
 }
 
 int
@@ -578,7 +603,7 @@ main(int argc, const char* argv[])
 				continue;
 			}
 		}
-		else if(strcmp(req->method, "forget-passphrase") == 0 && req->num_args == 1)
+		else if(strcmp(req->method, "remember-passphrase") == 0 && req->num_args == 1)
 		{
 			hakomari_rpc_string_t endpoint;
 
@@ -591,7 +616,20 @@ main(int argc, const char* argv[])
 
 			fprintf(stdout, "%s(%s)\n", req->method, endpoint);
 
-			cache_delete(&cache, endpoint);
+			struct cache_entry_s* entry = cache_find(&cache, endpoint);
+			if(entry != NULL)
+			{
+				struct timespec time;
+				if(clock_gettime(CLOCK_MONOTONIC, &time) == 0)
+				{
+					entry->expire_at = time.tv_sec + PASSPHRASE_CACHE_ENTRY_TTL;
+					fprintf(stdout, "Remembered %s\n", endpoint);
+				}
+				else
+				{
+					fprintf(stderr, "Could not get time: %s\n", strerror(errno));
+				}
+			}
 
 			if(hakomari_rpc_begin_result(req) != 0)
 			{
@@ -860,6 +898,7 @@ end_input_passphrase:
 	}
 
 quit:
+	cache_init(&cache);
 	hakomari_rpc_stop_client(&client);
 
 	if(image_mem != NULL) { munmap(image_mem, length); }

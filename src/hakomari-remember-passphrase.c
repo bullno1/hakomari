@@ -30,7 +30,7 @@ main()
 		quit(EXIT_FAILURE);
 	}
 
-	hakomari_rpc_req_t* req = hakomari_rpc_begin_req(&rpc, "ask-passphrase", 1);
+	hakomari_rpc_req_t* req = hakomari_rpc_begin_req(&rpc, "remember-passphrase", 1);
 	if(req == NULL)
 	{
 		fprintf(stderr, "Error starting request: %s\n", hakomari_rpc_strerror(&rpc));
@@ -53,45 +53,10 @@ main()
 
 	if(rep->success)
 	{
-		cmp_object_t obj;
-		if(!cmp_read_object(rep->cmp, &obj))
+		if(!cmp_read_nil(rep->cmp))
 		{
 			fprintf(stderr, "Error receiving reply: %s\n", cmp_strerror(req->cmp));
 			quit(EXIT_FAILURE);
-		}
-
-		switch(obj.type)
-		{
-			case CMP_TYPE_NIL:
-				quit(HAKOMARI_EXIT_CODE_OFFSET + HAKOMARI_ERR_AUTH_REQUIRED);
-				break;
-			case CMP_TYPE_STR8:
-			case CMP_TYPE_STR16:
-			case CMP_TYPE_STR32:
-			case CMP_TYPE_FIXSTR:
-				{
-					hakomari_rpc_string_t passphrase;
-					if(obj.as.str_size > sizeof(passphrase) - 1)
-					{
-						fprintf(stderr, "Format error");
-						quit(EXIT_FAILURE);
-					}
-
-					struct hakomari_rpc_io_ctx_s* io = req->cmp->buf;
-					if(read(io->fd, passphrase, obj.as.str_size) != (ssize_t)obj.as.str_size)
-					{
-						fprintf(stderr, "Error reading reply: %s\n", strerror(errno));
-						quit(EXIT_FAILURE);
-					}
-
-					passphrase[obj.as.str_size] = '\0';
-					fprintf(stdout, "%s\n", passphrase);
-				}
-				break;
-			default:
-				fprintf(stderr, "Format error: %d\n", obj.type);
-				quit(EXIT_FAILURE);
-				break;
 		}
 	}
 	else

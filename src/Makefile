@@ -4,7 +4,8 @@ all: \
 	hakomari-echod hakomari-echo \
 	hakomari-endpointd \
 	hakomari-vaultd \
-	hakomari-ask-passphrase
+	hakomari-ask-passphrase \
+	hakomari-remember-passphrase \
 
 ssd1306.a: ssd1306.c
 	$(CC) $(CFLAGS) -o ssd1306.o -c $<
@@ -40,4 +41,7 @@ hakomari-vaultd: hakomari-vaultd.c ssd1306_gd.a ssd1306.a hakomari-rpc.a
 	$(CC) $(CFLAGS) -o $@ $^ -lc-periphery -lgd -lcmp -lancillary
 
 hakomari-ask-passphrase: hakomari-ask-passphrase.c hakomari-rpc.a
+	$(CC) $(CFLAGS) -o $@ $^ -lcmp
+
+hakomari-remember-passphrase: hakomari-remember-passphrase.c hakomari-rpc.a
 	$(CC) $(CFLAGS) -o $@ $^ -lcmp
