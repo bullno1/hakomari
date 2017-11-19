@@ -1,0 +1,14 @@
+#!/bin/sh -e
+
+case $1 in
+	2|3|9|15|20)
+		for SERVICE in $(ls /run/service)
+		do
+			sv force-stop ${SERVICE} || true
+		done
+
+		busybox poweroff -f
+		;;
+	*)
+		;;
+esac

@@ -26,4 +26,4 @@ do
 		/run/service/hakomari-vaultd@${PROVIDER}
 done
 
-exec runsvdir -P /run/service
+exec runsvdir -s /sbin/hakomari-provider-signal -P /run/service

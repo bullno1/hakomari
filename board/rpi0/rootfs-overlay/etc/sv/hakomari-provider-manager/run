@@ -5,6 +5,7 @@ DATA_DIR="/var/lib/hakomari"
 SANDBOX_MOUNTS="\
 	/usr/bin:/bin:ro \
 	/usr/sbin/hako-run:/sbin/hako-run:ro \
+	/usr/sbin/hakomari-provider-signal:/sbin/hakomari-provider-signal:ro \
 	/dev/log:/dev/log:rw \
 	${RUN_DIR}:/run:rw \
 	${DATA_DIR}:/data:rw \
