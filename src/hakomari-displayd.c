@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <signal.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/poll.h>
@@ -131,6 +132,7 @@ show_text(ssd1306_gd_t* fb, ssd1306_t* display, const char* text, bool is_questi
 int
 main(int argc, const char* argv[])
 {
+	signal(SIGPIPE, SIG_IGN);
 	setvbuf(stdout, NULL, _IOLBF, 1024);
 	setvbuf(stderr, NULL, _IOLBF, 1024);
 
