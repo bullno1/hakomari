@@ -1,9 +1,13 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+#include <linux/memfd.h>
+#include <linux/limits.h>
 #include "hakomari-cfg.h"
 #include "hakomari-rpc.h"
 
@@ -17,15 +21,21 @@ env(const char* name, const char* default_value)
 }
 
 int
-main(int argc, const char* argv[])
+main(int argc, char* argv[])
 {
 	int exit_code = EXIT_SUCCESS;
 	bool need_confirmation = false;
+	int memfd = -1;
 
 	hakomari_rpc_client_t rpc;
 	hakomari_rpc_init_client(&rpc);
 
-	if(argc >= 2) { need_confirmation = strcmp(argv[1], "-c") == 0; }
+	char* const* exec_argv = &argv[1];
+	if(argc >= 2 && strcmp(argv[1], "-c") == 0)
+	{
+		need_confirmation = true;
+		++exec_argv;
+	}
 
 	if(hakomari_rpc_start_client(&rpc, env("HAKOMARI_VAULTD_SOCK", "/run/vault")) != 0)
 	{
@@ -77,8 +87,48 @@ main(int argc, const char* argv[])
 
 		if(status_code == HAKOMARI_OK)
 		{
-			fprintf(stdout, "%s\n", result_string);
-			quit(EXIT_SUCCESS);
+			if(exec_argv[0] == NULL)
+			{
+				fprintf(stdout, "%s\n", result_string);
+				quit(EXIT_SUCCESS);
+			}
+			else
+			{
+				hakomari_rpc_stop_client(&rpc);
+
+				memfd = syscall(__NR_memfd_create, "passphrase-file", 0);
+				if(memfd < 0)
+				{
+					fprintf(stdout, "Could not create memfd: %s\n", strerror(errno));
+					quit(EXIT_FAILURE);
+				}
+
+				if(write(memfd, result_string, str_len) != (ssize_t)str_len)
+				{
+					fprintf(stdout, "Could not write to memfd: %s\n", strerror(errno));
+					quit(EXIT_FAILURE);
+				}
+
+				char passphrase_file_path[PATH_MAX];
+				int ret = snprintf(
+					passphrase_file_path, PATH_MAX,
+					"/proc/self/fd/%d", memfd
+				);
+				if(ret < 0 || ret >= PATH_MAX) { quit(EXIT_FAILURE); }
+
+				if(setenv("HAKOMARI_PASSPHRASE_FILE", passphrase_file_path, 1) < 0)
+				{
+					fprintf(stdout, "Could not setenv: %s\n", strerror(errno));
+					quit(EXIT_FAILURE);
+				}
+
+				if(execvpe(exec_argv[0], exec_argv, environ) < 0)
+				{
+					fprintf(stdout, "execve() failed: %s\n", strerror(errno));
+					quit(EXIT_FAILURE);
+				}
+				// No return
+			}
 		}
 		else
 		{
@@ -101,6 +151,7 @@ main(int argc, const char* argv[])
 	}
 
 quit:
+	if(memfd >= 0) { close(memfd); }
 	hakomari_rpc_stop_client(&rpc);
 	return exit_code;
 }

@@ -31,8 +31,12 @@ exec_script(
 	fprintf(stdout, "\n");
 
 	char argv0[PATH_MAX];
+	char path_env[PATH_MAX];
 
 	int ret = snprintf(argv0, PATH_MAX, "%s/%s", script_dir, script);
+	if(ret < 0 || ret >= PATH_MAX) { return -1; }
+
+	ret = snprintf(path_env, PATH_MAX, "PATH=/bin:/sbin:%s", script_dir);
 	if(ret < 0 || ret >= PATH_MAX) { return -1; }
 
 	char* argv[num_args + 2];
@@ -56,6 +60,7 @@ exec_script(
 		"HAKOMARI_INPUT=/proc/self/fd/3",
 		"HAKOMARI_OUTPUT=/proc/self/fd/4",
 		hakomari_endpoint_env,
+		path_env,
 		NULL
 	};
 
