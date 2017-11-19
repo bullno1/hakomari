@@ -43,6 +43,13 @@ enum passphrase_entry_state_e
 	PASSPHRASE_REMEMBERED
 };
 
+enum passphrase_confirmation_state_e
+{
+	PASSPHRASE_UNCONFIRMED,
+	PASSPHRASE_CONFIRMED,
+	PASSPHRASE_MISMATCHED,
+};
+
 enum button_type_e
 {
 	BUTTON_DUMMY,
@@ -82,6 +89,7 @@ struct cache_entry_s
 	struct linked_list_node lru_node;
 	enum passphrase_entry_state_e state;
 	time_t expire_at;
+	enum passphrase_confirmation_state_e confirmation_state;
 
 	hakomari_rpc_string_t key;
 	hakomari_rpc_string_t value;
@@ -305,6 +313,16 @@ list_unlink(struct linked_list_node* item)
 }
 
 static void
+cache_entry_init(struct cache_entry_s* entry)
+{
+	memset(entry->key, 0, sizeof(entry->key));
+	memset(entry->value, 0, sizeof(entry->value));
+	entry->expire_at = 0;
+	entry->state = PASSPHRASE_UNUSED;
+	entry->confirmation_state = PASSPHRASE_UNCONFIRMED;
+}
+
+static void
 cache_init(struct cache_s* cache)
 {
 	cache->head.next = &cache->head;
@@ -313,11 +331,8 @@ cache_init(struct cache_s* cache)
 	for(unsigned int i = 0; i < PASSPHRASE_CACHE_SIZE; ++i)
 	{
 		struct cache_entry_s* entry = &cache->entries[i];
-		memset(entry->key, 0, sizeof(entry->key));
-		memset(entry->value, 0, sizeof(entry->value));
-		entry->expire_at = 0;
-		entry->state = PASSPHRASE_UNUSED;
 		list_prepend(&cache->head, &entry->lru_node);
+		cache_entry_init(entry);
 	}
 }
 
@@ -335,12 +350,8 @@ cache_find(struct cache_s* cache, hakomari_rpc_string_t key)
 	return NULL;
 }
 
-static bool
-cache_get(
-	struct cache_s* cache,
-	hakomari_rpc_string_t key,
-	hakomari_rpc_string_t value
-)
+static struct cache_entry_s*
+cache_get(struct cache_s* cache, hakomari_rpc_string_t key)
 {
 	struct cache_entry_s* entry = cache_find(cache, key);
 	if(entry == NULL) { return false; }
@@ -356,9 +367,7 @@ cache_get(
 
 		if(time.tv_sec > entry->expire_at)
 		{
-			memset(entry->key, 0, sizeof(entry->key));
-			memset(entry->value, 0, sizeof(entry->value));
-			entry->state = PASSPHRASE_UNUSED;
+			cache_entry_init(entry);
 			fprintf(stdout, "%s expired\n", key);
 			return false;
 		}
@@ -368,9 +377,8 @@ cache_get(
 
 	list_unlink(&entry->lru_node);
 	list_prepend(&cache->head, &entry->lru_node);
-	strcpy(value, entry->value);
 
-	return true;
+	return entry;
 }
 
 static void
@@ -384,14 +392,24 @@ cache_put(
 	if(entry == NULL)
 	{
 		entry = (struct cache_entry_s*)cache->head.prev;
+		cache_entry_init(entry);
+		strcpy(entry->key, key);
 	}
 
 	list_unlink(&entry->lru_node);
 	list_prepend(&cache->head, &entry->lru_node);
-	strcpy(entry->key, key);
-	strcpy(entry->value, value);
-	entry->expire_at = 0;
-	entry->state = PASSPHRASE_FILLED;
+
+	if(entry->state == PASSPHRASE_UNUSED)
+	{
+		strcpy(entry->value, value);
+		entry->state = PASSPHRASE_FILLED;
+	}
+	else
+	{
+		entry->confirmation_state = strcmp(entry->value, value) == 0
+			? PASSPHRASE_CONFIRMED
+			: PASSPHRASE_MISMATCHED;
+	}
 }
 
 int
@@ -563,20 +581,61 @@ main(int argc, const char* argv[])
 				continue;
 			}
 		}
-		else if(strcmp(req->method, "ask-passphrase") == 0 && req->num_args == 1)
+		else if(strcmp(req->method, "ask-passphrase") == 0 && req->num_args == 2)
 		{
-			hakomari_rpc_string_t endpoint, passphrase;
+			hakomari_rpc_string_t endpoint;
+			bool need_confirmation;
 
 			uint32_t size = sizeof(endpoint);
-			if(!cmp_read_str(req->cmp, endpoint, &size))
+			if(false
+				|| !cmp_read_str(req->cmp, endpoint, &size)
+				|| !cmp_read_bool(req->cmp, &need_confirmation)
+			)
 			{
 				fprintf(stderr, "Error reading request: %s\n", cmp_strerror(req->cmp));
 				continue;
 			}
 
-			fprintf(stdout, "%s(%s)\n", req->method, endpoint);
+			fprintf(
+				stdout, "%s(%s, %s)\n",
+				req->method,
+				endpoint, need_confirmation ? "confirm" : "no-confirm"
+			);
 
-			bool has_passphrase = cache_get(&cache, endpoint, passphrase);
+			struct cache_entry_s* entry = cache_get(&cache, endpoint);
+			unsigned int status_code = HAKOMARI_OK;
+			const char* result_string = "";
+
+			if(entry == NULL)
+			{
+				status_code = HAKOMARI_ERR_AUTH_REQUIRED;
+				result_string = "Passphrase required";
+			}
+			else if(need_confirmation)
+			{
+				entry->state = PASSPHRASE_FILLED;
+				switch(entry->confirmation_state)
+				{
+					case PASSPHRASE_UNCONFIRMED:
+						status_code = HAKOMARI_ERR_AUTH_REQUIRED;
+						result_string = "Passphrase confirmation required";
+						break;
+					case PASSPHRASE_CONFIRMED:
+						status_code = HAKOMARI_OK;
+						result_string = entry->value;
+						break;
+					case PASSPHRASE_MISMATCHED:
+						cache_entry_init(entry);
+						status_code = HAKOMARI_ERR_INVALID;
+						result_string = "Passphrases mismatched";
+						break;
+				}
+			}
+			else
+			{
+				status_code = HAKOMARI_OK;
+				result_string = entry->value;
+			}
 
 			if(hakomari_rpc_begin_result(req) != 0)
 			{
@@ -585,8 +644,9 @@ main(int argc, const char* argv[])
 			}
 
 			if(false
-				|| (has_passphrase && !cmp_write_str(req->cmp, passphrase, strlen(passphrase)))
-				|| (!has_passphrase && !cmp_write_nil(req->cmp))
+				|| !cmp_write_array(req->cmp, 2)
+				|| !cmp_write_u8(req->cmp, status_code)
+				|| !cmp_write_str(req->cmp, result_string, strlen(result_string))
 			)
 			{
 				fprintf(stderr, "Error sending result: %s\n", cmp_strerror(req->cmp));
@@ -686,6 +746,9 @@ main(int argc, const char* argv[])
 			uint32_t cursor_y = 0;
 			bool shift = false;
 			gdFontPtr font = gdFontGetTiny();
+			const char* prompt_text = cache_find(&cache, endpoint) == NULL
+				? "Enter passphrase"
+				: "Confirm passphrases";
 			while(reading_input && passphrase_length < sizeof(passphrase) - 1)
 			{
 				gdImageFilledRectangle(
@@ -696,7 +759,7 @@ main(int argc, const char* argv[])
 
 				draw_text_wrapped(
 					&fb, 0, 0, font,
-					passphrase_length > 0 ? passphrase : "Enter passphrase"
+					passphrase_length > 0 ? passphrase : prompt_text
 				);
 
 				draw_buttons(
