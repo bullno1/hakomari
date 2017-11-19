@@ -133,6 +133,46 @@ main(int argc, char* argv[])
 		else
 		{
 			fprintf(stderr, "%s\n", result_string);
+
+			hakomari_rpc_stop_client(&rpc);
+			if(hakomari_rpc_start_client(&rpc, HAKOMARI_DISPLAYD_SOCK_PATH) != 0)
+			{
+				fprintf(
+					stderr, "Could not connect to rpc server: %s\n",
+					hakomari_rpc_strerror(&rpc)
+				);
+				quit(HAKOMARI_EXIT_CODE_OFFSET + status_code);
+			}
+
+			hakomari_rpc_req_t* req = hakomari_rpc_begin_req(&rpc, "show", 1);
+			if(req == NULL)
+			{
+				fprintf(
+					stderr, "Error starting request: %s\n",
+					hakomari_rpc_strerror(&rpc)
+				);
+				quit(HAKOMARI_EXIT_CODE_OFFSET + status_code);
+			}
+
+			if(!cmp_write_str(req->cmp, result_string, str_len))
+			{
+				fprintf(
+					stderr, "Error sending request: %s\n",
+					hakomari_rpc_strerror(&rpc)
+				);
+				quit(HAKOMARI_EXIT_CODE_OFFSET + status_code);
+			}
+
+			hakomari_rpc_rep_t* rep = hakomari_rpc_end_req(req);
+			if(rep == NULL)
+			{
+				fprintf(stderr, "Error while waiting for reply: %s\n", hakomari_rpc_strerror(&rpc));
+				quit(HAKOMARI_EXIT_CODE_OFFSET + status_code);
+			}
+
+			cmp_skip_object(rep->cmp, NULL);
+
+			hakomari_rpc_stop_client(&rpc);
 			quit(HAKOMARI_EXIT_CODE_OFFSET + status_code);
 		}
 	}
