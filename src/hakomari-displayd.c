@@ -46,7 +46,7 @@ configure_button(gpio_t* gpio, int pin)
 }
 
 static int
-show_text(ssd1306_gd_t* fb, ssd1306_t* display, const char* text)
+show_text(ssd1306_gd_t* fb, ssd1306_t* display, const char* text, bool is_question)
 {
 	gdFontPtr font = gdFontGetTiny();
 
@@ -81,6 +81,41 @@ show_text(ssd1306_gd_t* fb, ssd1306_t* display, const char* text)
 				}
 				break;
 		}
+	}
+
+	if(is_question)
+	{
+		int radius = (font->w > font->h ? font->w : font->h) + 5;
+		gdImageChar(
+			fb->image,
+			font,
+			fb->image->sx - (font->w + 6),
+			fb->image->sy - (font->h + 6) * 2,
+			(unsigned)'Y',
+			fb->draw_color
+		);
+		gdImageChar(
+			fb->image,
+			font,
+			fb->image->sx - (font->w + 6) * 2,
+			fb->image->sy - (font->h + 6),
+			(unsigned)'N',
+			fb->draw_color
+		);
+		gdImageEllipse(
+			fb->image,
+			fb->image->sx - (font->w + 6) + font->w / 2,
+			fb->image->sy - (font->h + 6) * 2 + font->h / 2 - 1,
+			radius, radius,
+			fb->draw_color
+		);
+		gdImageEllipse(
+			fb->image,
+			fb->image->sx - (font->w + 6) * 2 + font->w / 2,
+			fb->image->sy - (font->h + 6) + font->h / 2 - 1,
+			radius, radius,
+			fb->draw_color
+		);
 	}
 
 	int err;
@@ -154,7 +189,7 @@ main(int argc, const char* argv[])
 		quit(EXIT_FAILURE);
 	}
 
-	if(show_text(&fb, &display, "Hakomari ready!") != 0) { quit(EXIT_FAILURE); }
+	if(show_text(&fb, &display, "Hakomari ready!", false) != 0) { quit(EXIT_FAILURE); }
 
 	while(true)
 	{
@@ -187,7 +222,7 @@ main(int argc, const char* argv[])
 
 			fprintf(stdout, "%s(\"%s\")\n", req->method, msg);
 
-			if(show_text(&fb, &display, msg) != 0)
+			if(show_text(&fb, &display, msg, strcmp(req->method, "confirm") == 0) != 0)
 			{
 				hakomari_rpc_reply_error(req, "server-error");
 				quit(EXIT_FAILURE);
@@ -268,10 +303,8 @@ main(int argc, const char* argv[])
 					continue;
 				}
 
-				const char* decision = accepted ? "accepted" : "rejected";
-				fprintf(stdout, "%s\n", decision);
-
-				if(show_text(&fb, &display, decision) != 0)
+				fprintf(stdout, "%s\n", accepted ? "accepted" : "rejected");
+				if(show_text(&fb, &display, "", false) != 0)
 				{
 					quit(EXIT_FAILURE);
 				}
@@ -371,7 +404,7 @@ main(int argc, const char* argv[])
 			}
 
 end_stream_image:
-			show_text(&fb, &display, "");
+			show_text(&fb, &display, "", false);
 			if(image_mem != NULL) { munmap(image_mem, length); }
 			if(image_fd >= 0) { close(image_fd); }
 		}
@@ -387,7 +420,7 @@ quit:
 
 	if(display_initialized)
 	{
-		show_text(&fb, &display, "");
+		show_text(&fb, &display, "", false);
 		ssd1306_end(&display);
 		ssd1306_cleanup(&display);
 	}
