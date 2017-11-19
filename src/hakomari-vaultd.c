@@ -613,10 +613,10 @@ main(int argc, const char* argv[])
 			}
 			else if(need_confirmation)
 			{
-				entry->state = PASSPHRASE_FILLED;
 				switch(entry->confirmation_state)
 				{
 					case PASSPHRASE_UNCONFIRMED:
+						entry->state = PASSPHRASE_FILLED;
 						status_code = HAKOMARI_ERR_AUTH_REQUIRED;
 						result_string = "Passphrase confirmation required";
 						break;
