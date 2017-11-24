@@ -4,7 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <sys/poll.h>
+#include <poll.h>
 #include <cmp.h>
 
 #ifndef HAKOMARI_RPC_TIMEOUT

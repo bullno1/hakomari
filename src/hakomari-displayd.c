@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/poll.h>
+#include <poll.h>
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <linux/fcntl.h>
