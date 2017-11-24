@@ -1,0 +1,11 @@
+--- a/external/easylogging++/easylogging++.h	2017-10-23 20:31:21.000000000 +0800
++++ a/external/easylogging++/easylogging++.h	2017-11-25 02:19:04.182539633 +0800
+@@ -196,7 +196,7 @@
+ #endif  // (defined(ELPP_DEBUG_INFO))
+ #if (defined(ELPP_FEATURE_ALL)) || (defined(ELPP_FEATURE_CRASH_LOG))
+ #  if (ELPP_COMPILER_GCC && !ELPP_MINGW)
+-#    define ELPP_STACKTRACE 1
++#    define ELPP_STACKTRACE 0
+ #  else
+ #      define ELPP_STACKTRACE 0
+ #      if ELPP_COMPILER_MSVC

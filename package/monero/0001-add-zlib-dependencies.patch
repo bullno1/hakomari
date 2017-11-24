@@ -1,0 +1,13 @@
+--- a/CMakeLists.txt	2017-10-23 20:31:21.000000000 +0800
++++ b/CMakeLists.txt	2017-11-25 02:01:37.332225419 +0800
+@@ -661,7 +661,9 @@
+   set(EXTRA_LIBRARIES execinfo ${COMPAT})
+ elseif(NOT MSVC)
+   find_library(RT rt)
+-  set(EXTRA_LIBRARIES ${RT})
++  # Not the best place to put zlib but many projects depend on it anyway.
++  find_library(Z z)
++  set(EXTRA_LIBRARIES ${Z} ${RT})
+ endif()
+ 
+ list(APPEND EXTRA_LIBRARIES ${CMAKE_DL_LIBS})
