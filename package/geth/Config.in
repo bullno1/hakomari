@@ -1,0 +1,8 @@
+config BR2_PACKAGE_GETH
+	bool "geth"
+	select BR2_PACKAGE_HOST_GO_ARCH_SUPPORTS
+	select BR2_UCLIBC_OVERRIDE
+	help
+	  Official Go implementation of the Ethereum protocol.
+
+	  https://geth.ethereum.org/
