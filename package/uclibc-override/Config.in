@@ -1,0 +1,8 @@
+if BR2_TOOLCHAIN_BUILDROOT_UCLIBC
+
+config BR2_UCLIBC_OVERRIDE
+	bool "uclibc-override"
+	help
+	  Horrible hack to force uclibc to build dynamic library.
+
+endif
