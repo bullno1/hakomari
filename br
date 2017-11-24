@@ -1,0 +1,3 @@
+#!/bin/sh -e
+
+exec make -C buildroot BR2_EXTERNAL=$(pwd) O=$(pwd)/output "$@"
