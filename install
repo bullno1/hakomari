@@ -1,0 +1,35 @@
+#!/bin/sh -e
+
+if [ $# != 1 ]
+then
+	echo "Usage: ./install <device>"
+	echo ""
+	echo "Example: ./install /dev/sdc"
+	exit 1
+fi
+
+DEVICE_INFO=$(udevadm  info --query=all -n $1)
+
+if ! echo ${DEVICE_INFO} | grep DEVTYPE=disk > /dev/null
+then
+	echo "$1 is not a storage device"
+	exit 1
+fi
+
+if ! echo ${DEVICE_INFO} | grep ID_BUS=usb > /dev/null
+then
+	echo "$1 is not a USB device"
+	exit 1
+fi
+
+echo -n "This will *destroy all data* on $1. Proceed? [y/N] "
+read PROCEED
+
+if [ "${PROCEED}" != "y" ]
+then
+	exit 0
+fi
+
+echo "Writing image to $1"
+sudo dd if=output/images/sdcard.img of=$1
+sudo sync
