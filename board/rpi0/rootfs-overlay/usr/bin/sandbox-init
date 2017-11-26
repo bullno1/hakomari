@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-DEFAULT_MOUNTS="${SV_BIN}:${SV_BIN} /lib:/lib"
+DEFAULT_MOUNTS="${SV_BIN}:${SV_BIN}"
 
 for MOUNT in $(echo "${DEFAULT_MOUNTS} ${SANDBOX_MOUNTS}" | tr ' ' '\n')
 do
@@ -47,4 +47,3 @@ fi
 
 # Hide sensitive directories
 mount -t tmpfs -o ro tmpfs .hako
-mount -t tmpfs -o ro tmpfs ./lib/modules

@@ -3,6 +3,7 @@
 RUN_DIR="/var/run/hakomari"
 DATA_DIR="/var/lib/hakomari"
 SANDBOX_MOUNTS="\
+	/lib:/lib:ro \
 	/usr/bin:/bin:ro \
 	/usr/sbin/hako-run:/sbin/hako-run:ro \
 	/usr/sbin/hakomari-provider-signal:/sbin/hakomari-provider-signal:ro \
