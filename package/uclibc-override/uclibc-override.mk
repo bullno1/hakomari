@@ -1,6 +1,6 @@
 ifeq ($(BR2_UCLIBC_OVERRIDE),y)
 
-UCLIBC_POST_INSTALL_STAGING_HOOKS += UCLIBC_INSTALL_STAGING_OVERRIDE_HOOK
+HOST_GO_POST_INSTALL_HOOKS += UCLIBC_INSTALL_HOOKS
 
 # Force generation of Scrt1.o
 define UCLIBC_KCONFIG_FIXUP_CMDS
@@ -39,7 +39,7 @@ define UCLIBC_KCONFIG_FIXUP_CMDS
 endef
 
 # Force CMake projects to statically link their executables
-define UCLIBC_INSTALL_STAGING_OVERRIDE_HOOK
+define UCLIBC_INSTALL_HOOKS
 	rm -rf $(STAGING_DIR)/lib/*.so
 	rm -rf $(STAGING_DIR)/lib/*.so.*
 endef
