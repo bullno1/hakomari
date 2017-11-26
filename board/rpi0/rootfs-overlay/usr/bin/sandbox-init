@@ -14,7 +14,12 @@ done
 
 if [ -f ./proc/.init ]
 then
-	mount -t proc proc ./proc
+	mount -t proc -o rw,nosuid,nodev,noexec,relatime proc ./proc
+fi
+
+if [ -f ./tmp/.init ]
+then
+	mount -t tmpfs -o rw,nosuid,nodev,relatime,mode=755 tmpfs ./tmp
 fi
 
 if [ -f ./dev/.init ]
@@ -35,8 +40,8 @@ then
 	ln -s /proc/kcore ./dev/core
 	mkdir ./dev/pts
 	mkdir ./dev/shm
-	mount -t devpts -o mode=620 none ./dev/pts
-	mount -t tmpfs none ./dev/shm
+	mount -t devpts -o rw,nosuid,noexec,relatime,mode=620,ptmxmode=000 none ./dev/pts
+	mount -t tmpfs -o rw,nosuid,nodev,relatime none ./dev/shm
 
 	if [ -e /dev/log ]
 	then
