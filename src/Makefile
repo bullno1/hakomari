@@ -6,6 +6,8 @@ all: \
 	hakomari-vaultd \
 	hakomari-ask-passphrase \
 	hakomari-remember-passphrase \
+	hakomari-workerd \
+	hakomari-worker-exec \
 
 ssd1306.a: ssd1306.c
 	$(CC) $(CFLAGS) -o ssd1306.o -c $<
@@ -44,4 +46,10 @@ hakomari-ask-passphrase: hakomari-ask-passphrase.c hakomari-rpc.a
 	$(CC) $(CFLAGS) -o $@ $^ -lcmp
 
 hakomari-remember-passphrase: hakomari-remember-passphrase.c hakomari-rpc.a
+	$(CC) $(CFLAGS) -o $@ $^ -lcmp
+
+hakomari-workerd: hakomari-workerd.c hakomari-rpc.a
+	$(CC) $(CFLAGS) -o $@ $^ -lcmp
+
+hakomari-worker-exec: hakomari-worker-exec.c hakomari-rpc.a
 	$(CC) $(CFLAGS) -o $@ $^ -lcmp
