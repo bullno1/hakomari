@@ -713,7 +713,7 @@ input_passphrase(
 		cmp_object_t obj;
 		if(!cmp_read_object(libreq->cmp, &obj))
 		{
-			fprintf(stderr, "Error reading payload: %s\n", cmp_strerror(req->cmp));
+			fprintf(stderr, "Error reading payload: %s\n", cmp_strerror(libreq->cmp));
 			quit(HAKOMARI_ERR_IO);
 		}
 

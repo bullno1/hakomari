@@ -749,43 +749,58 @@ main(int argc, const char* argv[])
 			const char* prompt_text = cache_find(&cache, endpoint) == NULL
 				? "Enter passphrase"
 				: "Confirm passphrases";
+
+			double update_interval = 1.0 / 60.0;
+			double last_update = 0;
 			while(reading_input && passphrase_length < sizeof(passphrase) - 1)
 			{
-				gdImageFilledRectangle(
-					fb.image,
-					0, 0, fb.image->sx - 1, fb.image->sy - 1,
-					fb.clear_color
-				);
-
-				draw_text_wrapped(
-					&fb, 0, 0, font,
-					passphrase_length > 0 ? passphrase : prompt_text
-				);
-
-				draw_buttons(
-					&fb, shift,
-					NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS, button_slots
-				);
-
-				gdImageLine(
-					fb.image,
-					cursor_x - 2, cursor_y,
-					cursor_x + 2, cursor_y,
-					fb.draw_color
-				);
-				gdImageLine(
-					fb.image,
-					cursor_x, cursor_y - 2,
-					cursor_x, cursor_y + 2,
-					fb.draw_color
-				);
-
-				write_image(fb.image, fb.draw_color, image_mem);
-
-				if(!cmp_write_bool(stream_req->cmp, true))
+				struct timespec time;
+				clock_gettime(CLOCK_MONOTONIC_RAW, &time);
+				double current_time = (double)time.tv_sec  + (double)time.tv_nsec / 1000000000.0;
+				if(current_time - last_update >= update_interval)
 				{
-					fprintf(stderr, "Error streaming image: %s\n", cmp_strerror(stream_req->cmp));
-					goto end_input_passphrase;
+					last_update = current_time;
+
+					gdImageFilledRectangle(
+						fb.image,
+						0, 0, fb.image->sx - 1, fb.image->sy - 1,
+						fb.clear_color
+					);
+
+					draw_text_wrapped(
+						&fb, 0, 0, font,
+						passphrase_length > 0 ? passphrase : prompt_text
+					);
+
+					draw_buttons(
+						&fb, shift,
+						NUM_CHAR_BUTTONS + NUM_CONTROL_BUTTONS, button_slots
+					);
+
+					gdImageLine(
+						fb.image,
+						cursor_x - 2, cursor_y,
+						cursor_x + 2, cursor_y,
+						fb.draw_color
+					);
+					gdImageLine(
+						fb.image,
+						cursor_x, cursor_y - 2,
+						cursor_x, cursor_y + 2,
+						fb.draw_color
+					);
+
+					write_image(fb.image, fb.draw_color, image_mem);
+
+					if(!cmp_write_bool(stream_req->cmp, true))
+					{
+						fprintf(
+							stderr,
+							"Error streaming image: %s\n",
+							cmp_strerror(stream_req->cmp)
+						);
+						goto end_input_passphrase;
+					}
 				}
 
 				cmp_object_t obj;
