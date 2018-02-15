@@ -1,6 +1,5 @@
-CMP_VERSION = 17
-CMP_SOURCE = v$(CMP_VERSION).tar.gz
-CMP_SITE = https://github.com/camgunz/cmp/archive
+CMP_VERSION = v17
+CMP_SITE = $(call github,camgunz,cmp,$(CMP_VERSION))
 CMP_LICENSE = MIT
 CMP_LICENSE_FILES = LICENSE
 CMP_INSTALL_STAGING = YES
