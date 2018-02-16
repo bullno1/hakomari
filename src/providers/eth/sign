@@ -1,0 +1,38 @@
+#!/bin/sh -ex
+
+main() {
+	RAW_TX="$(cat ${HAKOMARI_INPUT})"
+	TX="$(ethkey decode ${RAW_TX})"
+	TO=$(get_tx_field "${TX}" "to")
+	AMOUNT=$(get_tx_field "${TX}" "value")
+	AMOUNT="${AMOUNT% \(*}"
+	GAS_PRICE=$(get_tx_field "${TX}" "gas price")
+	GAS_PRICE="${GAS_PRICE% \(*}"
+	GAS=$(get_tx_field "${TX}" "gas")
+	hakomari-confirm "From: ${1}\nTo: ${TO}\nAmount: ${AMOUNT}\nGas: ${GAS}\nGas price: ${GAS_PRICE}"
+
+	hakomari-show "Signing..."
+
+	PASSPHRASE=$(cat ${HAKOMARI_PASSPHRASE_FILE})
+	KEYID=$(jq -r ".id" "$1")
+	RESULT=$(ethkey --secrets-path $(pwd) --unlock "${PASSPHRASE}" sign ${KEYID} "${RAW_TX}")
+	SIGNED_TX="${RESULT#*: }"
+	CANON_RAW_TX="${RAW_TX#0x*}"
+
+	if ["${CANON_RAW_TX}" = "${SIGNED_TX}"]; then
+		hakomari-show "Wrong password"
+		exit "${HAKOMARI_ERR_DENIED}"
+	fi
+
+	echo "0x${SIGNED_TX}" > ${HAKOMARI_OUTPUT}
+	hakomari-remember-passphrase
+	hakomari-show ""
+}
+
+get_tx_field() {
+	SEP="$2:"
+	LINE=$(echo "$1" | grep "${SEP}")
+	echo "${LINE#*: }"
+}
+
+main $*

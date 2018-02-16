@@ -1,0 +1,13 @@
+#!/bin/sh -e
+
+PASSPHRASE=$(cat $HAKOMARI_PASSPHRASE_FILE)
+
+rm -rf /tmp/*
+hakomari-show "Creating wallet..."
+ethkey --secrets-path /tmp --lock ${PASSPHRASE} newbare
+KEYID=$(ethkey --secrets-path /tmp)
+
+mv /tmp/${KEYID}.json $1
+
+ADDRESS="0x$(jq -r '.address' "$1")"
+hakomari-show "Address: ${ADDRESS}"

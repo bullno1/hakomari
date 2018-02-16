@@ -1,0 +1,4 @@
+#!/bin/sh -e
+
+hakomari-confirm "Delete $1?"
+rm -f "$1"

@@ -1,0 +1,9 @@
+#!/bin/sh -e
+
+if [ -f "$1" ]
+then
+	hakomari-show "File exists"
+	exit $HAKOMARI_ERR_DENIED
+fi
+
+exec hakomari-ask-passphrase -c ${HAKOMARI_SCRIPT_DIR}/create1 "$1"

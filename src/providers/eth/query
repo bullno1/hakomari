@@ -1,0 +1,19 @@
+#!/bin/sh -e
+
+if [ ! -f "$1" ];
+then
+	exit "$HAKOMARI_ERR_INVALID"
+fi
+
+case "$2" in
+	get-address)
+		ADDRESS=$(cat "$1" | jq -r '.address')
+		echo "0x${ADDRESS}" > "${HAKOMARI_OUTPUT}"
+		;;
+	sign)
+		exec hakomari-ask-passphrase ${HAKOMARI_SCRIPT_DIR}/sign "$1"
+		;;
+	*)
+		exit ${HAKOMARI_ERR_INVALID}
+		;;
+esac

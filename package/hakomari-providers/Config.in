@@ -1,0 +1,17 @@
+config BR2_PACKAGE_HAKOMARI_PROVIDERS
+	bool "hakomari-providers"
+	select BR2_PACKAGE_HAKOMARI
+	help
+	  Providers for Hakomari.
+
+	  https://github.com/bullno1/hakomari
+
+if BR2_PACKAGE_HAKOMARI_PROVIDERS
+
+config BR2_PACKAGE_HAKOMARI_PROVIDERS_ETH
+	bool "hakomari-providers-eth"
+	select BR2_PACKAGE_CPP_ETHEREUM
+	help
+	  Support for Ethereum
+
+endif
