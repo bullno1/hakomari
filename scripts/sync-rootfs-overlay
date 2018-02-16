@@ -1,6 +1,6 @@
 #!/bin/sh -e
 
-BINDIR=$(dirname $0)
+BINDIR=$(readlink -f $(dirname $0))
 cd ${BINDIR}/../board/rpi0/rootfs-overlay
 
 sync() {
@@ -9,10 +9,17 @@ sync() {
 		-e "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null" \
 		--usermap $(id -u):root \
 		--groupmap $(id -g):root \
-		$1/ root@10.0.0.254:/$1/
+		$1/ root@10.0.0.254:/$2/
 }
 
 for DIR in $(ls)
 do
-	sync ${DIR}
+	sync ${DIR} ${DIR}
+done
+
+cd ${BINDIR}/../src/providers
+
+for DIR in $(ls)
+do
+	sync ${DIR} /usr/lib/hakomari/providers/${DIR}
 done
