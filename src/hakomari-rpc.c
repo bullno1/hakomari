@@ -209,8 +209,11 @@ hakomari_rpc_start_server(
 	struct sockaddr_un addr;
 	addr.sun_family = AF_UNIX;
 	strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path));
-	umask(S_ISUID | S_ISGID | S_IXUSR | S_IXGRP | S_IRWXO);
-	if(bind(server->sock, (struct sockaddr*)&addr, sizeof(addr)) != 0)
+	mode_t previous = umask(S_ISUID | S_ISGID | S_IXUSR | S_IXGRP | S_IRWXO);
+	int bind_result = bind(server->sock, (struct sockaddr*)&addr, sizeof(addr));
+	umask(previous);
+
+	if(bind_result != 0)
 	{
 		return hakomari_rpc_set_error(server, errno, NULL);
 	}
