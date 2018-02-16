@@ -12,11 +12,11 @@ MONERO_CONF_OPTS = \
 	-DSTATIC=ON \
 	-DCMAKE_BUILD_TYPE=minsizerel
 MONERO_DEPENDENCIES += boost openssl cppzmq
-MONERO_POST_INSTALL_TARGET_HOOKS += MONERO_REMOVE_UNUSED_BINARIES
+MONERO_MAKE_OPTS = simplewallet
+MONERO_INSTALL_TARGET_OPTS =
 
-define MONERO_REMOVE_UNUSED_BINARIES
-	rm $(TARGET_DIR)/bin/monero*
-	$(INSTALL) -D -m 0755 $(@D)/bin/monero-wallet-cli $(TARGET_DIR)/bin/
+define MONERO_INSTALL_TARGET_CMDS
+	$(INSTALL) -D -m 0755 $(@D)/bin/monero-wallet-cli $(TARGET_DIR)/bin/monero-wallet-cli
 endef
 
 $(eval $(cmake-package))
