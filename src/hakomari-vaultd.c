@@ -27,7 +27,7 @@
 #define PASSPHRASE_CACHE_SIZE 32
 #endif
 #ifndef PASSPHRASE_CACHE_ENTRY_TTL
-#define PASSPHRASE_CACHE_ENTRY_TTL 60
+#define PASSPHRASE_CACHE_ENTRY_TTL 300
 #endif
 
 struct char_range_s
