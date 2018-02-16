@@ -1,4 +1,4 @@
-GETH_VERSION = 4bb3c89d44e372e6a9ab85a8be0c9345265c763a
+GETH_VERSION = v1.8.0
 GETH_SITE = $(call github,ethereum,go-ethereum,$(GETH_VERSION))
 GETH_LICENSE = LGPL
 GETH_LICENSE_FILES = COPYING
@@ -17,11 +17,11 @@ endef
 
 define GETH_BUILD_CMDS
 	cd $(@D)/gopath/src/github.com/ethereum/go-ethereum && $(GETH_MAKE_ENV) $(HOST_DIR)/bin/go \
-		build -v -o $(@D)/bin/geth -ldflags "-extldflags '-static'" ./cmd/geth
+		build -v -o $(@D)/bin/ethkey -ldflags "-extldflags '-static'" ./cmd/ethkey
 endef
 
 define GETH_INSTALL_TARGET_CMDS
-	$(INSTALL) -D -m 0755 $(@D)/bin/geth $(TARGET_DIR)/bin/geth
+	$(INSTALL) -D -m 0755 $(@D)/bin/ethkey $(TARGET_DIR)/bin/ethkey
 endef
 
 $(eval $(generic-package))
