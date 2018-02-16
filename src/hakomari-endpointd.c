@@ -109,6 +109,11 @@ exec_script(
 			return -1;
 		}
 
+		fprintf(stdout, "Script %s %d\n",
+			WIFEXITED(status) ? "exited with status" : "stopped with signal",
+			WIFEXITED(status) ? WEXITSTATUS(status) : WTERMSIG(status)
+		);
+
 		return WIFEXITED(status) ? WEXITSTATUS(status) : EXIT_FAILURE;
 	}
 }
@@ -177,14 +182,14 @@ main(int argc, const char* argv[])
 	char script_dir[PATH_MAX];
 	if(realpath(argv[3], script_dir) == NULL)
 	{
-		fprintf(stderr, "Could not resolve script dir: %s\n", strerror(errno));
+		fprintf(stderr, "Could not resolve script dir %s: %s\n", argv[3], strerror(errno));
 		quit(EXIT_FAILURE);
 	}
 
 	char data_dir[PATH_MAX];
 	if(realpath(argv[4], data_dir) == NULL)
 	{
-		fprintf(stderr, "Could not resolve data dir: %s\n", strerror(errno));
+		fprintf(stderr, "Could not resolve data dir %s: %s\n", argv[4], strerror(errno));
 		quit(EXIT_FAILURE);
 	}
 

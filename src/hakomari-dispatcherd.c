@@ -343,6 +343,8 @@ enumerate_endpoints(struct libhakomari_req_ctx_s* libreq)
 			continue;
 		}
 
+		fprintf(stdout, "Querying %s\n", dirent->d_name);
+
 		struct hakomari_endpoint_s* endpoint = &endpoints[num_endpoints++];
 		if(num_endpoints > MAX_NUM_ENDPOINTS) { break; }
 
@@ -732,7 +734,11 @@ input_passphrase(
 			case CMP_TYPE_ARRAY16:
 			case CMP_TYPE_ARRAY32:
 			case CMP_TYPE_FIXARRAY:
-				if(obj.as.array_size != 3) { quit(HAKOMARI_ERR_INVALID); }
+				if(obj.as.array_size != 3)
+				{
+					fprintf(stderr, "Invalid format\n");
+					quit(HAKOMARI_ERR_INVALID);
+				}
 
 				if(false
 					|| !cmp_read_uint(libreq->cmp, &x)
