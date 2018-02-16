@@ -2,6 +2,7 @@
 
 RUN_DIR="/run/providers/${SV_NAME_PARAM}"
 DATA_DIR="/data/providers/${SV_NAME_PARAM}"
+TMP_DIR="/tmp/${SV_NAME_PARAM}"
 SV_ARGS="\
 	/run/endpoint \
 	/run/endpoint.lock \
@@ -9,10 +10,12 @@ SV_ARGS="\
 	/data \
 "
 SANDBOX_MOUNTS="\
+	/lib:/lib:ro \
 	/bin:/bin:ro \
 	/run/displayd:/var/run/hakomari/displayd:ro \
 	${RUN_DIR}:/run:rw \
 	${DATA_DIR}:/data:rw \
+	${TMP_DIR}:/tmp:rw \
 "
 SANDBOX_USER="${HAKOMARI_ENDPOINTD_UID}"
 SANDBOX_GROUP="${HAKOMARI_PROVIDER_GID}"

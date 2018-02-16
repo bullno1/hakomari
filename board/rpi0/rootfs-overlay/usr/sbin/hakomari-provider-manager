@@ -17,6 +17,11 @@ do
 	chmod u=rwx,g=rwx,o= "${RUN_DIR}"
 	chown :${HAKOMARI_PROVIDER_GID} "${RUN_DIR}"
 
+	TMP_DIR="/tmp/$PROVIDER"
+	mkdir -p "${TMP_DIR}"
+	chmod u=rwx,g=rwx,o= "${TMP_DIR}"
+	chown ${HAKOMARI_ENDPOINTD_UID}:${HAKOMARI_PROVIDER_GID} "${TMP_DIR}"
+
 	cp -R \
 		/lib/hakomari/templates/hakomari-endpointd \
 		/run/service/hakomari-endpointd@${PROVIDER}
