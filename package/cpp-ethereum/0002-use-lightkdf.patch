@@ -1,0 +1,18 @@
+diff --git a/libdevcrypto/SecretStore.cpp b/libdevcrypto/SecretStore.cpp
+index b5b1bcb57..8dd562638 100644
+--- a/libdevcrypto/SecretStore.cpp
++++ b/libdevcrypto/SecretStore.cpp
+@@ -299,11 +299,11 @@ bool SecretStore::recode(h128 const& _uuid, string const& _newPass, function<str
+ static bytesSec deriveNewKey(string const& _pass, KDF _kdf, js::mObject& o_ret)
+ {
+ 	unsigned dklen = 32;
+-	unsigned iterations = 1 << 18;
++	unsigned iterations = 1 << 12;
+ 	bytes salt = h256::random().asBytes();
+ 	if (_kdf == KDF::Scrypt)
+ 	{
+-		unsigned p = 1;
++		unsigned p = 6;
+ 		unsigned r = 8;
+ 		o_ret["kdf"] = "scrypt";
+ 		{

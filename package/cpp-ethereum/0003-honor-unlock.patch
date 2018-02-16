@@ -1,0 +1,35 @@
+diff --git a/ethkey/KeyAux.h b/ethkey/KeyAux.h
+index a6f1c092a..cbaf10252 100644
+--- a/ethkey/KeyAux.h
++++ b/ethkey/KeyAux.h
+@@ -279,12 +279,19 @@ public:
+ 	Secret getSecret(std::string const& _signKey)
+ 	{
+ 		string json = contentsString(_signKey);
++		auto askPassword = [&]() {
++			if(m_unlocks.empty()) {
++				return getPassword("Enter passphrase for key: ");
++			} else {
++				return m_unlocks.back();
++			}
++		};
+ 		if (!json.empty())
+-			return Secret(secretStore().secret(secretStore().readKeyContent(json), [&](){ return getPassword("Enter passphrase for key: "); }));
++			return Secret(secretStore().secret(secretStore().readKeyContent(json), askPassword));
+ 		else
+ 		{
+ 			if (h128 u = fromUUID(_signKey))
+-				return Secret(secretStore().secret(u, [&](){ return getPassword("Enter passphrase for key: "); }));
++				return Secret(secretStore().secret(u, askPassword));
+ 			Address a;
+ 			try
+ 			{
+@@ -300,7 +307,7 @@ public:
+ 					}
+ 			}
+ 			if (a)
+-				return keyManager().secret(a, [&](){ return getPassword("Enter passphrase for key (hint:" + keyManager().passwordHint(a) + "): "); });
++				return keyManager().secret(a, askPassword);
+ 			cerr << "Bad file, UUID or address: " << _signKey << endl;
+ 			exit(-1);
+ 		}

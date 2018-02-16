@@ -1,0 +1,27 @@
+diff --git a/cmake/ProjectMPIR.cmake b/cmake/ProjectMPIR.cmake
+index e2b7a3181..c19ac0eeb 100644
+--- a/cmake/ProjectMPIR.cmake
++++ b/cmake/ProjectMPIR.cmake
+@@ -14,6 +14,9 @@ ExternalProject_Add(mpir
+     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=<INSTALL_DIR>
+         -DCMAKE_BUILD_TYPE=Release
+         -DMPIR_GMP=On
++        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
++        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
++    BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config Release
+     BUILD_BYPRODUCTS "${MPIR_LIBRARY}"
+ )
+ 
+diff --git a/cmake/secp256k1/CMakeLists.txt b/cmake/secp256k1/CMakeLists.txt
+index 467d2f7c2..1f3cdc4d5 100644
+--- a/cmake/secp256k1/CMakeLists.txt
++++ b/cmake/secp256k1/CMakeLists.txt
+@@ -19,7 +19,7 @@ if (MSVC)
+ 	set(COMPILE_FLAGS USE_FIELD_10X26 USE_SCALAR_8X32)
+ 	set(COMPILE_OPTIONS "")
+ else()
+-	set(COMPILE_FLAGS USE_FIELD_5X52 USE_SCALAR_4X64 HAVE_BUILTIN_EXPECT HAVE___INT128)
++	set(COMPILE_FLAGS USE_FIELD_10X26 USE_SCALAR_8X32 HAVE_BUILTIN_EXPECT)
+ 	set(COMPILE_OPTIONS -O3 -W -std=c89 -pedantic -Wall -Wextra -Wcast-align -Wnested-externs -Wshadow -Wstrict-prototypes -Wno-unused-function -Wno-long-long -Wno-overlength-strings -fvisibility=hidden)
+ endif()
+ 
