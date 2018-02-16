@@ -6,4 +6,4 @@ then
 	exit $HAKOMARI_ERR_DENIED
 fi
 
-exec hakomari-ask-passphrase -c create1 "$1"
+exec hakomari-ask-passphrase -c ${HAKOMARI_SCRIPT_DIR}/create1 "$1"
