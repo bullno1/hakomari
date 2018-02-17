@@ -6,11 +6,11 @@ TMP_DIR="/tmp/${SV_NAME_PARAM}"
 SV_ARGS="\
 	/run/endpoint \
 	/run/endpoint.lock \
-	/lib/hakomari/providers/${SV_NAME_PARAM} \
+	/lib/hakomari \
 	/data \
 "
 SANDBOX_MOUNTS="\
-	/lib:/lib:ro \
+	/lib/hakomari/providers/${SV_NAME_PARAM}:/lib/hakomari:ro \
 	/bin:/bin:ro \
 	/run/displayd:/var/run/hakomari/displayd:ro \
 	${RUN_DIR}:/run:rw \
