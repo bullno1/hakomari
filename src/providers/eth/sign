@@ -9,7 +9,8 @@ main() {
 	GAS_PRICE=$(get_tx_field "${TX}" "gas price")
 	GAS_PRICE="${GAS_PRICE% \(*}"
 	GAS=$(get_tx_field "${TX}" "gas")
-	hakomari-confirm "From: ${1}\nTo: ${TO}\nAmount: ${AMOUNT}\nGas: ${GAS}\nGas price: ${GAS_PRICE}"
+	CHAIN_ID=$(get_tx_field "${TX}" "chain id")
+	hakomari-confirm "From: ${1}\nTo: ${TO}\nAmount: ${AMOUNT}\nGas: ${GAS}\nGas price: ${GAS_PRICE}\nChain id: ${CHAIN_ID} ($(chain_name ${CHAIN_ID}))"
 
 	hakomari-show "Signing..."
 
@@ -33,6 +34,30 @@ get_tx_field() {
 	SEP="$2:"
 	LINE=$(echo "$1" | grep "${SEP}")
 	echo "${LINE#*: }"
+}
+
+# https://github.com/ethereum/EIPs/blob/master/EIPS/eip-155.md
+chain_name() {
+	case "$1" in
+		1)
+			echo "Mainnet"
+			;;
+		2)
+			echo "Morden"
+			;;
+		3)
+			echo "Ropsten"
+			;;
+		4)
+			echo "Rinkeby"
+			;;
+		27|28)
+			echo "Any"
+			;;
+		*)
+			echo "Unknown"
+			;;
+	esac
 }
 
 main $*

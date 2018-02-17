@@ -1,0 +1,29 @@
+diff --git a/ethkey/KeyAux.h b/ethkey/KeyAux.h
+index 36d0273b4..4d6f7f571 100644
+--- a/ethkey/KeyAux.h
++++ b/ethkey/KeyAux.h
+@@ -365,6 +365,7 @@ public:
+ 				cout << "  gas: " << t.gas() << endl;
+ 				cout << "  gas price: " << formatBalance(t.gasPrice()) << " (" << t.gasPrice() << " wei)" << endl;
+ 				cout << "  signing hash: " << t.sha3(WithoutSignature).hex() << endl;
++				cout << "  chain id: " << t.chainId() << endl;
+ 				if (t.safeSender())
+ 				{
+ 					cout << "  v: " << (int)t.signature().v << endl;
+diff --git a/libethcore/TransactionBase.h b/libethcore/TransactionBase.h
+index 07cf15dcc..daa80c749 100644
+--- a/libethcore/TransactionBase.h
++++ b/libethcore/TransactionBase.h
+@@ -141,6 +141,12 @@ public:
+ 	/// @returns true if the transaction was signed
+ 	bool hasSignature() const { return m_vrs.is_initialized(); }
+ 
++	/// @returns Sets chainId.
++	void chainId(int _chainId) { m_chainId = _chainId; }
++
++	/// @returns chainId
++	int chainId() const { return m_chainId; }
++
+ 	/// @returns true if the transaction was signed with zero signature
+ 	bool hasZeroSignature() const { return m_vrs && isZeroSignature(m_vrs->r, m_vrs->s); }
+ 
