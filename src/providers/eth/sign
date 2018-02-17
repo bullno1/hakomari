@@ -19,7 +19,7 @@ main() {
 	SIGNED_TX="${RESULT#*: }"
 	CANON_RAW_TX="${RAW_TX#0x*}"
 
-	if ["${CANON_RAW_TX}" = "${SIGNED_TX}"]; then
+	if [ "${CANON_RAW_TX}" = "${SIGNED_TX}" ]; then
 		hakomari-show "Wrong password"
 		exit "${HAKOMARI_ERR_DENIED}"
 	fi
