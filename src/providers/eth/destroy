@@ -1,4 +1,9 @@
 #!/bin/sh -e
 
-hakomari-confirm "Delete $1?"
+if [ ! -f "$1" ]
+then
+	exit $HAKOMARI_ERR_INVALID
+fi
+
+hakomari-confirm "Delete eth/$1?"
 rm -f "$1"

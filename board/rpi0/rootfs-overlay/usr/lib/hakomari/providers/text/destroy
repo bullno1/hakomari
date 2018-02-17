@@ -5,6 +5,6 @@ then
 	exit $HAKOMARI_ERR_INVALID
 fi
 
-hakomari-confirm "Delete $1?"
+hakomari-confirm "Delete text/$1?"
 
 rm -f "$1"
