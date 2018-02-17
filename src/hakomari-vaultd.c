@@ -244,14 +244,22 @@ draw_text_wrapped(
 	int char_y = y;
 	for(const char* ch = string; *ch != '\0'; ++ch)
 	{
-		if((char_x + font->w) > fb->image->sx)
+		if(*ch == '\n')
 		{
 			char_x = x;
 			char_y += font->h;
 		}
+		else
+		{
+			if((char_x + font->w) > fb->image->sx)
+			{
+				char_x = x;
+				char_y += font->h;
+			}
 
-		gdImageChar(fb->image, font, char_x, char_y, *ch, fb->draw_color);
-		char_x += font->w;
+			gdImageChar(fb->image, font, char_x, char_y, *ch, fb->draw_color);
+			char_x += font->w;
+		}
 	}
 }
 
@@ -746,9 +754,16 @@ main(int argc, const char* argv[])
 			uint32_t cursor_y = 0;
 			bool shift = false;
 			gdFontPtr font = gdFontGetTiny();
-			const char* prompt_text = cache_find(&cache, endpoint) == NULL
+
+			const char* prompt_msg = cache_find(&cache, endpoint) == NULL
 				? "Enter passphrase"
-				: "Confirm passphrases";
+				: "Confirm passphrase";
+			char prompt_text[sizeof(hakomari_rpc_string_t) * 3];
+			memset(prompt_text, 0, sizeof(prompt_text));
+			snprintf(
+				prompt_text, sizeof(prompt_text), "%s for:\n%s/%s",
+				prompt_msg, getenv("HAKOMARI_PROVIDER"), endpoint
+			);
 
 			double update_interval = 1.0 / 60.0;
 			double last_update = 0;
