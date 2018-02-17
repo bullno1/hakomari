@@ -1,4 +1,4 @@
-#!/bin/sh -ex
+#!/bin/sh -e
 
 main() {
 	RAW_TX="$(cat ${HAKOMARI_INPUT})"
